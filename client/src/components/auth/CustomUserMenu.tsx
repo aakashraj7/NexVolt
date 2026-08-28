@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Package, Heart, LogOut, ChevronDown } from 'lucide-react';
+import { User, Package, Heart, LogOut, ChevronDown, Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
 export const CustomUserMenu: React.FC = () => {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [isOpen, setIsOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -35,13 +36,18 @@ export const CustomUserMenu: React.FC = () => {
   }
 
   const handleSignOut = async () => {
+    if (isSigningOut) return;
     try {
+      setIsSigningOut(true);
       await signOut();
-      showToast('Signed out successfully.', 'info');
+      showToast('Signed out successfully. See you soon!', 'info');
       setIsOpen(false);
       navigate('/');
     } catch (err) {
       console.error('Sign out error:', err);
+      showToast('Error signing out. Please try again.', 'error');
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -129,10 +135,24 @@ export const CustomUserMenu: React.FC = () => {
             <div className="border-t border-slate-100 my-1 pt-1">
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition text-left"
+                disabled={isSigningOut}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-left ${
+                  isSigningOut
+                    ? 'bg-rose-50 text-rose-700 cursor-not-allowed opacity-90'
+                    : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50/80 active:scale-95'
+                }`}
               >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
+                {isSigningOut ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-rose-600 animate-spin" />
+                    <span className="animate-pulse">Signing Out...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                    <span>Sign Out</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -447,5 +447,67 @@ export const api = {
       console.warn('Backend checkPhoneAvailability error:', err);
       return { available: true };
     }
+  },
+
+  async getMerchantProfile(userId: string, initialData?: { email?: string; fullName?: string; storeName?: string }) {
+    try {
+      const res = await apiClient.get(`/users/merchant-profile/${userId}`, { params: initialData });
+      return res.data;
+    } catch (err) {
+      console.warn('Backend getMerchantProfile error:', err);
+      return null;
+    }
+  },
+
+  async updateMerchantProfile(userId: string, merchantData: any) {
+    try {
+      const res = await apiClient.post(`/users/merchant-profile/${userId}`, merchantData);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend updateMerchantProfile error:', err);
+      throw err;
+    }
+  },
+
+  async checkUserRole(userId: string, email?: string) {
+    try {
+      const res = await apiClient.get(`/users/check-role/${userId || 'guest'}`, { params: { email } });
+      return res.data;
+    } catch (err) {
+      console.warn('Backend checkUserRole error:', err);
+      return { exists: false, isMerchant: false, role: 'user' };
+    }
+  },
+
+  async enforcePortalGuard(payload: { userId?: string; email?: string; portal: 'customer' | 'merchant' }) {
+    try {
+      const res = await apiClient.post('/users/enforce-portal-guard', payload);
+      return res.data;
+    } catch (err: any) {
+      if (err.response?.data) {
+        return err.response.data;
+      }
+      return { allowed: true };
+    }
+  },
+
+  async deactivateCustomerAccount(userId: string) {
+    try {
+      const res = await apiClient.post(`/users/deactivate-customer/${userId}`);
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend deactivateCustomerAccount error:', err);
+      throw err;
+    }
+  },
+
+  async deactivateMerchantAccount(userId: string) {
+    try {
+      const res = await apiClient.post(`/users/deactivate-merchant/${userId}`);
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend deactivateMerchantAccount error:', err);
+      throw err;
+    }
   }
 };

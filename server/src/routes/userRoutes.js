@@ -397,4 +397,246 @@ router.post('/password/verify-and-set', async (req, res) => {
   }
 });
 
+// GET /api/users/merchant-profile/:userId - Retrieve merchant profile
+router.get('/merchant-profile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { email } = req.query;
+
+    let user = await User.findOne({
+      $or: [
+        { userId },
+        ...(email ? [{ email: email.toString().toLowerCase() }] : [])
+      ]
+    });
+
+    if (!user || (!user.isMerchant && user.role !== 'merchant')) {
+      return res.json({
+        success: false,
+        isMerchant: false,
+        message: 'This account is not a registered merchant.'
+      });
+    }
+
+    res.json({
+      success: true,
+      merchantProfile: user.merchantProfile,
+      isMerchant: true,
+      user
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching merchant profile', error: error.message });
+  }
+});
+
+// POST /api/users/merchant-profile/:userId - Save/Update merchant profile & complete onboarding
+router.post('/merchant-profile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const {
+      storeName,
+      businessType,
+      category,
+      gstin,
+      businessPhone,
+      supportEmail,
+      website,
+      warehouses,
+      onboardingCompleted
+    } = req.body;
+
+    let user = await User.findOne({ userId });
+
+    if (!user) {
+      user = new User({
+        userId,
+        email: (supportEmail || '').toLowerCase(),
+        fullName: storeName || '',
+        isMerchant: true
+      });
+    }
+
+    user.isMerchant = true;
+    user.role = 'merchant';
+    user.merchantProfile = {
+      storeName: storeName || user.merchantProfile?.storeName || '',
+      businessType: businessType || user.merchantProfile?.businessType || '',
+      category: category || user.merchantProfile?.category || '',
+      gstin: gstin || user.merchantProfile?.gstin || '',
+      businessPhone: businessPhone || user.merchantProfile?.businessPhone || '',
+      supportEmail: supportEmail || user.merchantProfile?.supportEmail || user.email,
+      website: website || user.merchantProfile?.website || '',
+      warehouses: warehouses && warehouses.length > 0 ? warehouses : (user.merchantProfile?.warehouses || []),
+      onboardingCompleted: onboardingCompleted !== undefined ? onboardingCompleted : true
+    };
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Merchant onboarding saved successfully!',
+      merchantProfile: user.merchantProfile,
+      user
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error saving merchant profile', error: error.message });
+  }
+});
+
+// GET /api/users/check-role/:userId - Verify user role and status
+router.get('/check-role/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { email } = req.query;
+
+    const queries = [];
+    if (userId && userId !== 'undefined' && userId !== 'null') {
+      queries.push({ userId });
+    }
+    if (email && email !== 'undefined' && email !== 'null') {
+      queries.push({ email: email.toString().toLowerCase() });
+      queries.push({ email: { $regex: new RegExp(`^${email.toString().trim()}$`, 'i') } });
+    }
+
+    let user = null;
+    if (queries.length > 0) {
+      user = await User.findOne({ $or: queries });
+    }
+
+    if (!user) {
+      return res.json({
+        exists: false,
+        isNewUser: true,
+        role: 'new',
+        isMerchant: false,
+        isCustomer: false,
+        isActive: true,
+        onboardingCompleted: false,
+        merchantOnboardingCompleted: false
+      });
+    }
+
+    const isMerchantUser = user.isMerchant === true || user.role === 'merchant';
+    const isCustomerUser = !isMerchantUser;
+
+    res.json({
+      exists: true,
+      isNewUser: false,
+      role: isMerchantUser ? 'merchant' : 'user',
+      isMerchant: isMerchantUser,
+      isCustomer: isCustomerUser,
+      isActive: user.isActive !== false,
+      onboardingCompleted: !!user.onboardingCompleted,
+      merchantOnboardingCompleted: !!user.merchantProfile?.onboardingCompleted
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error checking user role', error: error.message });
+  }
+});
+
+// POST /api/users/enforce-portal-guard - Prevent accidental cross-portal sign-ins
+router.post('/enforce-portal-guard', async (req, res) => {
+  try {
+    const { userId, email, portal } = req.body;
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    const queries = [];
+    if (userId && userId !== 'undefined' && userId !== 'null') {
+      queries.push({ userId });
+    }
+    if (cleanEmail) {
+      queries.push({ email: cleanEmail });
+      queries.push({ email: { $regex: new RegExp(`^${cleanEmail}$`, 'i') } });
+    }
+
+    let user = null;
+    if (queries.length > 0) {
+      user = await User.findOne({ $or: queries });
+    }
+
+    if (!user) {
+      return res.json({ allowed: true });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        allowed: false,
+        message: 'This account has been deactivated. Please contact support if this is an error.'
+      });
+    }
+
+    const isMerchantUser = user.isMerchant === true || user.role === 'merchant';
+
+    if (portal === 'customer') {
+      if (isMerchantUser) {
+        return res.status(403).json({
+          allowed: false,
+          userType: 'merchant',
+          message: 'This action is not possible. This account is registered as a Merchant. Please sign in via the Merchant Portal.',
+          redirect: '/merchant/sign-in'
+        });
+      }
+    } else if (portal === 'merchant') {
+      if (!isMerchantUser) {
+        return res.status(403).json({
+          allowed: false,
+          userType: 'customer',
+          message: 'This action is not possible. This account is registered as a Customer. Customer accounts cannot sign in to the Merchant Portal.',
+          redirect: '/sign-in'
+        });
+      }
+    }
+
+    res.json({ allowed: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error enforcing portal guard', error: error.message });
+  }
+});
+
+// POST /api/users/deactivate-customer/:userId - Permanently deactivate Customer Account (Danger Zone)
+router.post('/deactivate-customer/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findOne({ userId });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    // Delete user profile and clean up
+    await User.deleteOne({ userId });
+
+    res.json({
+      success: true,
+      message: 'Your NexVolt account and personal data have been completely deleted.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error deactivating customer account', error: error.message });
+  }
+});
+
+// POST /api/users/deactivate-merchant/:userId - Completely deactivate Merchant Store (Danger Zone)
+router.post('/deactivate-merchant/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findOne({ userId });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Merchant account not found.' });
+    }
+
+    user.isMerchant = false;
+    user.role = 'user';
+    user.merchantProfile = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Your Merchant Storefront has been completely deactivated and removed.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error deactivating merchant account', error: error.message });
+  }
+});
+
 export default router;

@@ -17,7 +17,8 @@ import {
   MapPin,
   Home,
   Briefcase,
-  Building2
+  Building2,
+  X
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, UserAddress } from '../types';
@@ -45,6 +46,83 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
   const addressDropdownRef = useRef<HTMLDivElement>(null);
+
+  // In-page Address Addition Modal State
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+  const [newAddrLabel, setNewAddrLabel] = useState<'Home' | 'Office' | 'Studio' | 'Custom'>('Home');
+  const [newAddrCustomLabel, setNewAddrCustomLabel] = useState('');
+  const [newAddrRecipient, setNewAddrRecipient] = useState('');
+  const [newAddrPhone, setNewAddrPhone] = useState('');
+  const [newAddrStreet, setNewAddrStreet] = useState('');
+  const [newAddrLandmark, setNewAddrLandmark] = useState('');
+  const [newAddrCity, setNewAddrCity] = useState('');
+  const [newAddrState, setNewAddrState] = useState('');
+  const [newAddrPostalCode, setNewAddrPostalCode] = useState('');
+  const [newAddrIsDefault, setNewAddrIsDefault] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
+
+  const handleOpenAddAddressModal = () => {
+    setAddressDropdownOpen(false);
+    setNewAddrRecipient(user?.fullName || '');
+    setNewAddrPhone('');
+    setNewAddrStreet('');
+    setNewAddrLandmark('');
+    setNewAddrCity('');
+    setNewAddrState('');
+    setNewAddrPostalCode('');
+    setNewAddrLabel('Home');
+    setNewAddrCustomLabel('');
+    setNewAddrIsDefault(userAddresses.length === 0);
+    setShowAddAddressModal(true);
+  };
+
+  const handleSaveNewAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSignedIn || !user?.id) {
+      showToast('Please sign in to add delivery addresses.', 'error');
+      return;
+    }
+
+    const cleanPhone = newAddrPhone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      showToast('Please enter a valid 10-digit mobile number.', 'error');
+      return;
+    }
+
+    try {
+      setSavingAddress(true);
+      const payload = {
+        label: newAddrLabel,
+        customLabel: newAddrLabel === 'Custom' ? newAddrCustomLabel : undefined,
+        recipientName: newAddrRecipient,
+        phone: cleanPhone,
+        street: newAddrStreet,
+        landmark: newAddrLandmark,
+        city: newAddrCity,
+        state: newAddrState,
+        postalCode: newAddrPostalCode,
+        country: 'India',
+        isDefault: newAddrIsDefault
+      };
+
+      const res = await api.addUserAddress(user.id, payload);
+      if (res && res.addresses) {
+        setUserAddresses(res.addresses);
+        if (res.newAddress?._id) {
+          setSelectedAddressId(res.newAddress._id);
+        } else if (res.addresses.length > 0) {
+          setSelectedAddressId(res.addresses[res.addresses.length - 1]._id);
+        }
+      }
+
+      showToast('New delivery address added & selected!', 'success');
+      setShowAddAddressModal(false);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error saving address. Please try again.', 'error');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
 
   // Close address dropdown on outside click
   useEffect(() => {
@@ -301,7 +379,7 @@ export const ProductDetailPage: React.FC = () => {
                     <MapPin className="w-3.5 h-3.5 text-[#0066FF]" />
                     <span>Delivering to:</span>
                   </span>
-                  <Link to="/profile" className="text-[11px] text-[#0066FF] hover:underline font-bold">
+                  <Link to="/profile?tab=addresses" className="text-[11px] text-[#0066FF] hover:underline font-bold">
                     Manage Addresses
                   </Link>
                 </div>
@@ -402,14 +480,22 @@ export const ProductDetailPage: React.FC = () => {
                         })}
                       </div>
 
-                      <div className="pt-1.5 mt-1 border-t border-slate-100 flex items-center justify-between px-2">
-                        <Link
-                          to="/profile"
-                          onClick={() => setAddressDropdownOpen(false)}
-                          className="text-xs font-bold text-[#0066FF] hover:underline flex items-center gap-1 py-1"
+                      <div className="pt-2 mt-1 border-t border-slate-100 flex items-center justify-between px-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={handleOpenAddAddressModal}
+                          className="text-xs font-bold text-[#0066FF] hover:text-blue-700 flex items-center gap-1.5 py-1 transition"
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Add New / Manage in Profile</span>
+                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Add New Address</span>
+                        </button>
+
+                        <Link
+                          to="/profile?tab=addresses"
+                          onClick={() => setAddressDropdownOpen(false)}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:underline py-1"
+                        >
+                          Manage in Profile
                         </Link>
                       </div>
                     </div>
@@ -623,6 +709,204 @@ export const ProductDetailPage: React.FC = () => {
             {related.map((prod) => (
               <ProductCard key={prod._id} product={prod} />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* In-Page Add Address Modal */}
+      {showAddAddressModal && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden animate-toast-in text-xs flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Add New Delivery Address</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Save a new shipping location for 1-Click checkout</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddAddressModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <form onSubmit={handleSaveNewAddress} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+              {/* Label Presets */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  Address Label / Type *
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(['Home', 'Office', 'Studio', 'Custom'] as const).map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setNewAddrLabel(item)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
+                        newAddrLabel === item
+                          ? 'bg-[#0066FF] text-white shadow-xs scale-[1.02]'
+                          : 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {item === 'Home' && <Home className="w-3.5 h-3.5" />}
+                      {item === 'Office' && <Briefcase className="w-3.5 h-3.5" />}
+                      {item === 'Studio' && <Building2 className="w-3.5 h-3.5" />}
+                      <span>{item}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {newAddrLabel === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={newAddrCustomLabel}
+                    onChange={(e) => setNewAddrCustomLabel(e.target.value)}
+                    placeholder="e.g. Parent's House, Farmhouse, School"
+                    className="w-full mt-2 bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Recipient Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddrRecipient}
+                    onChange={(e) => setNewAddrRecipient(e.target.value)}
+                    placeholder="Full recipient name"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Phone (10 digits) *</label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={newAddrPhone}
+                    onChange={(e) => setNewAddrPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="9876543210"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Street Address, Flat / Building *</label>
+                <input
+                  type="text"
+                  required
+                  value={newAddrStreet}
+                  onChange={(e) => setNewAddrStreet(e.target.value)}
+                  placeholder="Flat / House No, Street name, Area"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Landmark (Optional)</label>
+                <input
+                  type="text"
+                  value={newAddrLandmark}
+                  onChange={(e) => setNewAddrLandmark(e.target.value)}
+                  placeholder="Near Metro / Landmark"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddrCity}
+                    onChange={(e) => setNewAddrCity(e.target.value)}
+                    placeholder="Bengaluru"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">State *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddrState}
+                    onChange={(e) => setNewAddrState(e.target.value)}
+                    placeholder="Karnataka"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">PIN Code *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={newAddrPostalCode}
+                    onChange={(e) => setNewAddrPostalCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="560001"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="modalSetDefault"
+                  checked={newAddrIsDefault}
+                  onChange={(e) => setNewAddrIsDefault(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0066FF] focus:ring-[#0066FF] border-slate-300 cursor-pointer"
+                />
+                <label htmlFor="modalSetDefault" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                  Set as my default delivery address
+                </label>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowAddAddressModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingAddress}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-95 transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+                >
+                  {savingAddress ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Address...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save & Select Address</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

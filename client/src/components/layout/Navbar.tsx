@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import {
   Search,
   ShoppingBag,
@@ -25,6 +26,7 @@ import { MOCK_PRODUCTS } from '../../lib/mockData';
 import logoImg from '../../assets/nexVolt-logo.png';
 
 export const Navbar: React.FC = () => {
+  const { isSignedIn } = useUser();
   const { totalItems } = useCart();
   const { totalWishlistItems } = useWishlist();
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,10 +80,10 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-2 sm:top-4 z-40 w-full px-3 sm:px-6 lg:px-8 pointer-events-none">
-      <div className="max-w-7xl mx-auto pointer-events-auto">
-        {/* Curvey Floating Navbar Capsule with Clean Grey Border */}
-        <div className="bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl sm:rounded-full shadow-lg shadow-slate-300/30 px-3.5 sm:px-6 py-2.5 transition-all duration-300">
+    <header className="sticky top-0 z-40 w-full pt-2 sm:pt-3 pb-2 sm:pb-3 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Curvey Floating Navbar Capsule */}
+        <div className="bg-white/90 backdrop-blur-2xl border border-slate-200/80 rounded-2xl sm:rounded-full shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 px-3.5 sm:px-6 py-2.5 transition-all duration-300">
           <div className="flex items-center justify-between gap-2.5 lg:gap-5">
             {/* 1. Left: Logo */}
             <Link to="/" className="shrink-0 flex items-center group">
@@ -227,7 +229,7 @@ export const Navbar: React.FC = () => {
               >
                 <div className="relative">
                   <Heart className="w-5 h-5 text-slate-700 group-hover:text-[#0066FF] group-hover:scale-105 transition-transform" />
-                  {totalWishlistItems > 0 && (
+                  {isSignedIn && totalWishlistItems > 0 && (
                     <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-rose-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
                       {totalWishlistItems}
                     </span>
@@ -246,9 +248,11 @@ export const Navbar: React.FC = () => {
               >
                 <div className="relative">
                   <ShoppingBag className="w-5 h-5 text-slate-700 group-hover:text-[#0066FF] group-hover:scale-105 transition-transform" />
-                  <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-[#0066FF] text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
-                    {totalItems}
-                  </span>
+                  {isSignedIn && totalItems > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-[#0066FF] text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
+                      {totalItems}
+                    </span>
+                  )}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-600 group-hover:text-[#0066FF] mt-0.5">
                   Cart

@@ -1,8 +1,28 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { ClerkProvider, useUser, useClerk } from '@clerk/clerk-react';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder_key_for_build';
+
+function ClerkProviderWithRouter({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+
+  return (
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      routerPush={(to) => navigate(to)}
+      routerReplace={(to) => navigate(to, { replace: true })}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
+    >
+      {children}
+    </ClerkProvider>
+  );
+}
 
 import { Home } from './pages/Home';
 import { ProductsPage } from './pages/Products';
@@ -15,17 +35,96 @@ import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { MerchantSignInPage } from './pages/MerchantSignInPage';
 import { MerchantSignUpPage } from './pages/MerchantSignUpPage';
+import { MerchantOnboardingPage } from './pages/MerchantOnboardingPage';
 import { MerchantDashboard } from './pages/MerchantDashboard';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { SSOCallbackPage } from './pages/SSOCallback';
 
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, useToast, setFlashToast } from './context/ToastContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { api } from './lib/api';
 
-// Mandatory Onboarding Guard
+// Strict Role Guard - Prevents Customers from accessing Merchant routes & vice-versa
+const RoleRouteGuard: React.FC = () => {
+  const { user, isSignedIn, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { showToast } = useToast();
+  const isEnforcingRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !user) return;
+    if (isEnforcingRef.current) return;
+
+    const enforceRoleRouting = async () => {
+      try {
+        const userEmail = user.primaryEmailAddress?.emailAddress || '';
+        const roleData = await api.checkUserRole(user.id, userEmail);
+        const isExistingUser = roleData?.exists === true;
+        const isMerchantUser = isExistingUser && (roleData?.isMerchant === true || roleData?.role === 'merchant');
+        const isCustomerUser = isExistingUser && !isMerchantUser;
+        const isNewUser = !isExistingUser;
+
+        // 1. Check if user just attempted a specific portal sign-in (persisted across Google OAuth)
+        const pendingPortal = sessionStorage.getItem('nexvolt_auth_portal');
+        if (pendingPortal === 'merchant') {
+          sessionStorage.removeItem('nexvolt_auth_portal');
+          // If the account ALREADY exists as a Customer -> BLOCK!
+          if (isCustomerUser) {
+            isEnforcingRef.current = true;
+            setFlashToast('This action is not possible. This account is registered as a Customer. Merchant sign-in is not permitted.', 'error');
+            await signOut({ redirectUrl: '/merchant/sign-in' });
+            return;
+          }
+          // If brand new user or merchant -> Allow into merchant onboarding / dashboard!
+          if (isNewUser || !roleData?.merchantOnboardingCompleted) {
+            navigate('/merchant/onboarding', { replace: true });
+            return;
+          }
+        } else if (pendingPortal === 'customer') {
+          sessionStorage.removeItem('nexvolt_auth_portal');
+          // If the account ALREADY exists as a Merchant -> BLOCK!
+          if (isMerchantUser) {
+            isEnforcingRef.current = true;
+            setFlashToast('This action is not possible. This account is registered as a Merchant. Customer sign-in is not permitted.', 'error');
+            await signOut({ redirectUrl: '/sign-in' });
+            return;
+          }
+          // If brand new user -> Allow into customer onboarding!
+          if (isNewUser || !roleData?.onboardingCompleted) {
+            navigate('/onboarding', { replace: true });
+            return;
+          }
+        }
+
+        // 2. Block ALREADY REGISTERED Customer from accessing ANY merchant page
+        if (isCustomerUser && location.pathname.startsWith('/merchant')) {
+          showToast('This action is not possible. Customer accounts cannot access the Merchant Portal.', 'error');
+          navigate('/', { replace: true });
+          return;
+        }
+
+        // 3. Block ALREADY REGISTERED Merchant from accessing customer sign-in/sign-up pages
+        if (isMerchantUser && (location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up'))) {
+          showToast('Merchant accounts cannot access the Customer Sign In page.', 'info');
+          navigate('/merchant/dashboard', { replace: true });
+          return;
+        }
+      } catch (err) {
+        console.warn('Role route guard check error:', err);
+      }
+    };
+
+    enforceRoleRouting();
+  }, [isLoaded, isSignedIn, user, location.pathname, navigate, signOut, showToast]);
+
+  return null;
+};
+
+// Mandatory Customer Onboarding Guard
 const OnboardingChecker: React.FC = () => {
   const { user, isSignedIn, isLoaded } = useUser();
   const navigate = useNavigate();
@@ -34,19 +133,31 @@ const OnboardingChecker: React.FC = () => {
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user) return;
 
+    // Do NOT run on exempt paths or any merchant pages
     const exemptPaths = ['/onboarding', '/sign-in', '/sign-up', '/merchant', '/sso-callback'];
     if (exemptPaths.some(p => location.pathname.startsWith(p))) return;
 
+    // Do NOT run if user is currently performing a merchant auth flow
+    if (sessionStorage.getItem('nexvolt_auth_portal') === 'merchant') return;
+
     const checkOnboarding = async () => {
       try {
+        const userEmail = user.primaryEmailAddress?.emailAddress || '';
+        const roleData = await api.checkUserRole(user.id, userEmail);
+
+        // Never redirect merchants to customer onboarding
+        if (roleData?.isMerchant === true || roleData?.role === 'merchant') {
+          return;
+        }
+
         const isGoogle = user.externalAccounts?.some(acc => acc.provider === 'google');
         const profile = await api.getUserProfile(user.id, {
-          email: user.primaryEmailAddress?.emailAddress || '',
+          email: userEmail,
           fullName: user.fullName || '',
           provider: isGoogle ? 'google' : 'email_password'
         });
 
-        if (profile && !profile.onboardingCompleted && (!profile.addresses || profile.addresses.length === 0)) {
+        if (profile && !profile.isMerchant && !profile.onboardingCompleted && (!profile.addresses || profile.addresses.length === 0)) {
           navigate('/onboarding');
         }
       } catch (err) {
@@ -55,7 +166,7 @@ const OnboardingChecker: React.FC = () => {
     };
 
     checkOnboarding();
-  }, [isLoaded, isSignedIn, user, location.pathname]);
+  }, [isLoaded, isSignedIn, user, location.pathname, navigate]);
 
   return null;
 };
@@ -63,47 +174,51 @@ const OnboardingChecker: React.FC = () => {
 export function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-cyan-500 selection:text-white">
-              {/* Mandatory Step-by-Step Onboarding Guard */}
-              <OnboardingChecker />
+      <ClerkProviderWithRouter>
+        <ToastProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#F5F8FC] via-[#EEF4FB] to-[#E5EFFB] text-slate-900 selection:bg-[#0066FF] selection:text-white overflow-x-hidden">
+                {/* Strict Role Guard & Onboarding Guard */}
+                <RoleRouteGuard />
+                <OnboardingChecker />
 
-              {/* Main Navigation Bar */}
-              <Navbar />
+                {/* Main Navigation Bar */}
+                <Navbar />
 
-              {/* Dynamic Pages */}
-              <main className="flex-1">
-                <Routes>
-                  {/* Customer Store Routes */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/products" element={<ProductsPage />} />
-                  <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
-                  <Route path="/cart" element={<CartPage />} />
-                  <Route path="/wishlist" element={<WishlistPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/onboarding" element={<OnboardingPage />} />
-                  <Route path="/sign-in/*" element={<SignInPage />} />
-                  <Route path="/sign-up/*" element={<SignUpPage />} />
-                  <Route path="/sso-callback" element={<SSOCallbackPage />} />
-                  <Route path="/checkout" element={<CheckoutPage />} />
-                  <Route path="/orders" element={<OrdersPage />} />
+                {/* Dynamic Pages */}
+                <main className="flex-1">
+                  <Routes>
+                    {/* Customer Store Routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/products" element={<ProductsPage />} />
+                    <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/wishlist" element={<WishlistPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/onboarding" element={<OnboardingPage />} />
+                    <Route path="/sign-in/*" element={<SignInPage />} />
+                    <Route path="/sign-up/*" element={<SignUpPage />} />
+                    <Route path="/sso-callback" element={<SSOCallbackPage />} />
+                    <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/orders" element={<OrdersPage />} />
 
-                  {/* Dedicated Merchant & Seller Portal Routes */}
-                  <Route path="/merchant/sign-in/*" element={<MerchantSignInPage />} />
-                  <Route path="/merchant/sign-up/*" element={<MerchantSignUpPage />} />
-                  <Route path="/merchant" element={<MerchantDashboard />} />
-                  <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
-                </Routes>
-              </main>
+                    {/* Dedicated Merchant & Seller Portal Routes */}
+                    <Route path="/merchant/sign-in/*" element={<MerchantSignInPage />} />
+                    <Route path="/merchant/sign-up/*" element={<MerchantSignUpPage />} />
+                    <Route path="/merchant/onboarding" element={<MerchantOnboardingPage />} />
+                    <Route path="/merchant" element={<MerchantDashboard />} />
+                    <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
+                  </Routes>
+                </main>
 
-              {/* Global Footer */}
-              <Footer />
-            </div>
-          </WishlistProvider>
-        </CartProvider>
-      </ToastProvider>
+                {/* Global Footer */}
+                <Footer />
+              </div>
+            </WishlistProvider>
+          </CartProvider>
+        </ToastProvider>
+      </ClerkProviderWithRouter>
     </BrowserRouter>
   );
 }

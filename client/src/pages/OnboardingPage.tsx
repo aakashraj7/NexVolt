@@ -78,6 +78,13 @@ export const OnboardingPage: React.FC = () => {
       try {
         setLoading(true);
         const email = user.primaryEmailAddress?.emailAddress || '';
+        const roleData = await api.checkUserRole(user.id, email);
+
+        if (roleData?.isMerchant || sessionStorage.getItem('nexvolt_auth_portal') === 'merchant') {
+          navigate('/merchant/onboarding', { replace: true });
+          return;
+        }
+
         const name = user.fullName || '';
         const isGoogle = user.externalAccounts?.some(acc => acc.provider === 'google');
 

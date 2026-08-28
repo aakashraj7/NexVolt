@@ -87,6 +87,30 @@ const userSchema = new mongoose.Schema({
   onboardingCompleted: {
     type: Boolean,
     default: false
+  },
+  role: {
+    type: String,
+    enum: ['user', 'merchant'],
+    default: 'user'
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isMerchant: {
+    type: Boolean,
+    default: false
+  },
+  merchantProfile: {
+    storeName: { type: String, default: '' },
+    businessType: { type: String, default: '' },
+    category: { type: String, default: '' },
+    gstin: { type: String, default: '' },
+    businessPhone: { type: String, default: '' },
+    supportEmail: { type: String, default: '' },
+    website: { type: String, default: '' },
+    warehouses: [addressSchema],
+    onboardingCompleted: { type: Boolean, default: false }
   }
 }, {
   timestamps: true

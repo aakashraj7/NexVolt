@@ -36,13 +36,23 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   });
 
-  // Sync Wishlist with MongoDB when user logs in
+  // Sync Wishlist with MongoDB on login, and reset on logout
   useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      setWishlist([]);
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
+
     const syncUserWishlist = async () => {
       if (isLoaded && isSignedIn && user?.id) {
         try {
           const dbWishlist = await api.getWishlist(user.id);
-          if (Array.isArray(dbWishlist) && dbWishlist.length > 0) {
+          if (Array.isArray(dbWishlist)) {
             setWishlist(dbWishlist);
           }
         } catch (err) {

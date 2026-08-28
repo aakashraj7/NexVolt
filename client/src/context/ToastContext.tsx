@@ -15,6 +15,14 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+export const setFlashToast = (message: string, type: ToastType = 'error') => {
+  try {
+    sessionStorage.setItem('nexvolt_flash_toast', JSON.stringify({ message, type }));
+  } catch (e) {
+    console.warn('Failed to set flash toast:', e);
+  }
+};
+
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -30,6 +38,20 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // Check for any flash toast persisted across page redirects / sign-outs
+  React.useEffect(() => {
+    try {
+      const flash = sessionStorage.getItem('nexvolt_flash_toast');
+      if (flash) {
+        sessionStorage.removeItem('nexvolt_flash_toast');
+        const data = JSON.parse(flash);
+        showToast(data.message, data.type || 'error');
+      }
+    } catch (e) {
+      console.warn('Error reading flash toast:', e);
+    }
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import {
   Store,
   Package,
@@ -14,7 +14,10 @@ import {
   CheckCircle2,
   X,
   Loader2,
-  Zap
+  Zap,
+  Settings,
+  ShieldAlert,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, Order } from '../types';
@@ -22,14 +25,21 @@ import { useToast } from '../context/ToastContext';
 
 export const MerchantDashboard: React.FC = () => {
   const { user, isLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'recovery'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'recovery' | 'settings'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [merchantProfile, setMerchantProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Danger Zone Deactivation states
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivateConfirmText, setDeactivateConfirmText] = useState('');
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   // Product Add / Edit Modal states
   const [showProductModal, setShowProductModal] = useState(false);
@@ -71,10 +81,58 @@ export const MerchantDashboard: React.FC = () => {
       navigate('/merchant/sign-in');
       return;
     }
-    if (isLoaded && isSignedIn) {
-      loadData();
+    if (isLoaded && isSignedIn && user) {
+      const checkMerchantOnboarding = async () => {
+        try {
+          const roleData = await api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress);
+          if (!roleData || (!roleData.isMerchant && roleData.role !== 'merchant')) {
+            showToast('This action is not possible. Customer accounts cannot access the Merchant Portal.', 'error');
+            navigate('/', { replace: true });
+            return;
+          }
+
+          const profileData = await api.getMerchantProfile(user.id, {
+            email: user.primaryEmailAddress?.emailAddress || '',
+            fullName: user.fullName || ''
+          });
+          if (profileData && profileData.merchantProfile) {
+            setMerchantProfile(profileData.merchantProfile);
+            if (!profileData.merchantProfile.onboardingCompleted) {
+              navigate('/merchant/onboarding');
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('Merchant profile check error:', err);
+        }
+        loadData();
+      };
+
+      checkMerchantOnboarding();
     }
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, user]);
+
+  const handleConfirmStoreDeactivation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || deactivateConfirmText.trim().toUpperCase() !== 'DELETE') {
+      showToast('Please type DELETE to confirm deactivation.', 'error');
+      return;
+    }
+
+    try {
+      setIsDeactivating(true);
+      await api.deactivateMerchantAccount(user.id);
+      showToast('Your Merchant Storefront has been completely deactivated.', 'success');
+      setShowDeactivateModal(false);
+      await signOut();
+      navigate('/');
+    } catch (err: any) {
+      console.error('Merchant deactivation error:', err);
+      showToast('Failed to deactivate merchant storefront.', 'error');
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
 
   const handleOpenAddProduct = () => {
     setEditingProductId(null);
@@ -316,6 +374,18 @@ export const MerchantDashboard: React.FC = () => {
             <Sparkles className="w-4 h-4 text-purple-600" />
             <span>AI Revenue Recovery Agent</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`pb-3 border-b-2 transition flex items-center gap-2 ${
+              activeTab === 'settings'
+                ? 'border-rose-600 text-rose-600'
+                : 'border-transparent text-slate-500 hover:text-rose-600'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Store Settings & Danger Zone</span>
+          </button>
         </div>
       </div>
 
@@ -550,6 +620,157 @@ export const MerchantDashboard: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Store Settings & Danger Zone */}
+      {activeTab === 'settings' && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Store Overview Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">Seller Storefront Information</h3>
+              <p className="text-slate-500 text-xs mt-0.5">Your official business profile, certified categories, and dispatch hubs.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Store Brand Name</span>
+                <p className="text-sm font-bold text-slate-900 mt-1">{merchantProfile?.storeName || user?.fullName || 'NexVolt Seller'}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Primary Category</span>
+                <p className="text-sm font-bold text-slate-900 mt-1">{merchantProfile?.category || 'Consumer Electronics'}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">GSTIN / Tax ID</span>
+                <p className="text-sm font-mono font-bold text-slate-900 mt-1">{merchantProfile?.gstin || '29ABCDE1234F1Z5'}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Support Business Email</span>
+                <p className="text-xs font-semibold text-slate-900 mt-1 truncate">{merchantProfile?.supportEmail || user?.primaryEmailAddress?.emailAddress}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Business Phone</span>
+                <p className="text-xs font-semibold text-slate-900 mt-1">{merchantProfile?.businessPhone || '+91 98765 43210'}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Dispatch Warehouses</span>
+                <p className="text-xs font-bold text-slate-900 mt-1">{merchantProfile?.warehouses?.length || 1} Active Location(s)</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Danger Zone Card */}
+          <div className="bg-rose-50/50 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-rose-200 shadow-xl shadow-rose-500/5 space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-rose-900">Danger Zone</h3>
+                <p className="text-rose-700 text-xs mt-1 leading-relaxed">
+                  Permanently deactivate your merchant storefront and delete your seller business privileges from NexVolt.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white/80 border border-rose-200/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">Deactivate Seller Storefront</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                    This will permanently remove your seller store, delist your products from the NexVolt catalog, and cancel active inventory integrations.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeactivateConfirmText('');
+                    setShowDeactivateModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition flex items-center justify-center gap-2 shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Deactivate Storefront</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivation Confirmation Modal */}
+      {showDeactivateModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 shadow-2xl space-y-5 animate-toast-in text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-rose-600 font-extrabold text-sm">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Confirm Store Deactivation</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeactivateModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-slate-600 leading-relaxed">
+              This action is <strong className="text-rose-600">permanent and irreversible</strong>. Your electronics listings, seller analytics, and merchant badge will be wiped from the platform.
+            </p>
+
+            <form onSubmit={handleConfirmStoreDeactivation} className="space-y-4">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Type <span className="font-mono text-rose-600 font-extrabold">DELETE</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={deactivateConfirmText}
+                  onChange={(e) => setDeactivateConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono tracking-wider outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeactivateModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeactivating || deactivateConfirmText.trim().toUpperCase() !== 'DELETE'}
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isDeactivating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deactivating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Permanently Deactivate</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

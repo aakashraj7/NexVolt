@@ -51,13 +51,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Sync Cart with MongoDB when user logs in
+  // Sync Cart with MongoDB on login, and reset on logout
   useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      setCart([]);
+      setCoupon(null);
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem(COUPON_STORAGE_KEY);
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
+
     const syncUserCart = async () => {
       if (isLoaded && isSignedIn && user?.id) {
         try {
           const dbCart = await api.getCart(user.id);
-          if (dbCart && Array.isArray(dbCart.items) && dbCart.items.length > 0) {
+          if (dbCart && Array.isArray(dbCart.items)) {
             // Format db items into CartItem format
             const formatted: CartItem[] = dbCart.items
               .filter((item: any) => item.product)
