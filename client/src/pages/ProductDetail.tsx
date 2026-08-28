@@ -1,23 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import {
   Star,
   ShoppingBag,
   Heart,
-  Truck,
-  ShieldCheck,
-  RotateCcw,
   Check,
   ChevronRight,
+  ChevronDown,
   Zap,
   Copy,
   Loader2,
   Plus,
   Minus,
-  Trash2
+  Trash2,
+  MapPin,
+  Home,
+  Briefcase,
+  Building2
 } from 'lucide-react';
 import { api } from '../lib/api';
-import type { Product } from '../types';
+import type { Product, UserAddress } from '../types';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
@@ -26,6 +29,7 @@ import { ProductCard } from '../components/products/ProductCard';
 export const ProductDetailPage: React.FC = () => {
   const { idOrSlug } = useParams<{ idOrSlug: string }>();
   const navigate = useNavigate();
+  const { user, isSignedIn } = useUser();
   const { addToCart, removeFromCart, isInCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
@@ -36,11 +40,56 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
 
+  // Saved user addresses state for delivery selector
+  const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
+  const addressDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close address dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (addressDropdownRef.current && !addressDropdownRef.current.contains(e.target as Node)) {
+        setAddressDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // Review form states
   const [reviewName, setReviewName] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Load user saved addresses if signed in
+  useEffect(() => {
+    const loadAddresses = async () => {
+      if (isSignedIn && user?.id) {
+        try {
+          const profile = await api.getUserProfile(user.id, {
+            email: user.primaryEmailAddress?.emailAddress || '',
+            fullName: user.fullName || ''
+          });
+          if (profile?.addresses && profile.addresses.length > 0) {
+            setUserAddresses(profile.addresses);
+            const defaultAddr = profile.addresses.find((a: UserAddress) => a.isDefault) || profile.addresses[0];
+            if (defaultAddr) {
+              setSelectedAddressId(defaultAddr._id || null);
+            }
+          }
+        } catch (err) {
+          console.warn('Error loading addresses for product page:', err);
+        }
+      } else {
+        setUserAddresses([]);
+        setSelectedAddressId(null);
+      }
+    };
+
+    loadAddresses();
+  }, [isSignedIn, user]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -241,6 +290,139 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
+          {/* Delivery Address Selector for Logged In User */}
+          {isSignedIn && user && userAddresses.length > 0 && (() => {
+            const activeAddress = userAddresses.find(a => a._id === selectedAddressId) || userAddresses[0];
+
+            return (
+              <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#0066FF]" />
+                    <span>Delivering to:</span>
+                  </span>
+                  <Link to="/profile" className="text-[11px] text-[#0066FF] hover:underline font-bold">
+                    Manage Addresses
+                  </Link>
+                </div>
+
+                {/* Custom Modern Dropdown Selector */}
+                <div className="relative" ref={addressDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setAddressDropdownOpen(!addressDropdownOpen)}
+                    className="w-full bg-white border border-slate-300 hover:border-[#0066FF] focus:border-[#0066FF] rounded-xl p-2.5 sm:p-3 text-left transition-all duration-200 shadow-2xs hover:shadow-md flex items-center justify-between gap-2.5 group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#0066FF] flex items-center justify-center shrink-0 border border-blue-200/80 group-hover:scale-105 transition-transform">
+                        {activeAddress.label.toLowerCase() === 'home' && <Home className="w-3.5 h-3.5" />}
+                        {activeAddress.label.toLowerCase() === 'office' && <Briefcase className="w-3.5 h-3.5" />}
+                        {activeAddress.label.toLowerCase() !== 'home' && activeAddress.label.toLowerCase() !== 'office' && <Building2 className="w-3.5 h-3.5" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 text-xs">
+                            {activeAddress.label === 'Custom' ? (activeAddress.customLabel || 'Custom') : activeAddress.label}
+                          </span>
+                          {activeAddress.isDefault && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate font-medium mt-0.5">
+                          {activeAddress.street}, {activeAddress.city} ({activeAddress.postalCode})
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-1 rounded-lg bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-[#0066FF] transition-colors shrink-0">
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${addressDropdownOpen ? 'rotate-180 text-[#0066FF]' : ''}`} />
+                    </div>
+                  </button>
+
+                  {/* Floating Glassmorphic Dropdown List */}
+                  {addressDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white/98 backdrop-blur-2xl border border-slate-200 rounded-2xl p-1.5 shadow-2xl space-y-1 animate-toast-in">
+                      <div className="max-h-56 overflow-y-auto space-y-1 no-scrollbar">
+                        {userAddresses.map((addr) => {
+                          const isSelected = addr._id === activeAddress._id;
+                          return (
+                            <button
+                              key={addr._id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedAddressId(addr._id || null);
+                                setAddressDropdownOpen(false);
+                              }}
+                              className={`w-full p-2.5 rounded-xl text-left transition-all duration-150 flex items-center justify-between gap-2.5 border ${
+                                isSelected
+                                  ? 'bg-blue-50/90 border-blue-200 text-slate-900 shadow-2xs'
+                                  : 'bg-transparent border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                                  isSelected ? 'bg-[#0066FF] text-white border-[#0066FF]' : 'bg-slate-100 text-slate-500 border-slate-200'
+                                }`}>
+                                  {addr.label.toLowerCase() === 'home' && <Home className="w-3.5 h-3.5" />}
+                                  {addr.label.toLowerCase() === 'office' && <Briefcase className="w-3.5 h-3.5" />}
+                                  {addr.label.toLowerCase() !== 'home' && addr.label.toLowerCase() !== 'office' && <Building2 className="w-3.5 h-3.5" />}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-xs text-slate-900">
+                                      {addr.label === 'Custom' ? (addr.customLabel || 'Custom') : addr.label}
+                                    </span>
+                                    {addr.isDefault && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100/80 text-emerald-800">
+                                        Default
+                                      </span>
+                                    )}
+                                    {addr.recipientName && (
+                                      <span className="text-[10px] text-slate-400 truncate">
+                                        • {addr.recipientName}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 truncate font-medium">
+                                    {addr.street}, {addr.city} ({addr.postalCode})
+                                  </p>
+                                </div>
+                              </div>
+
+                              {isSelected && (
+                                <div className="w-5 h-5 rounded-full bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                  <Check className="w-3 h-3 stroke-[2.5]" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-1.5 mt-1 border-t border-slate-100 flex items-center justify-between px-2">
+                        <Link
+                          to="/profile"
+                          onClick={() => setAddressDropdownOpen(false)}
+                          className="text-xs font-bold text-[#0066FF] hover:underline flex items-center gap-1 py-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add New / Manage in Profile</span>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-slate-500 font-medium">
+                  1-Click Buy Now applies to your selected delivery address by default.
+                </p>
+              </div>
+            );
+          })()}
+
           {/* Quantity & CTA buttons */}
           <div className="space-y-4 pt-4 border-t border-slate-200">
             <div className="flex items-center gap-4">
@@ -314,25 +496,6 @@ export const ProductDetailPage: React.FC = () => {
               >
                 <Heart className={`w-5 h-5 ${isFavorited ? 'fill-rose-500 text-rose-500' : ''}`} />
               </button>
-            </div>
-          </div>
-
-          {/* Delivery & Warranty perks */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-4 border-t border-slate-200 text-center">
-            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <Truck className="w-4 sm:w-5 h-4 sm:h-5 text-[#0066FF] mx-auto mb-1" />
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-900">Free Express</p>
-              <p className="text-[9px] sm:text-[10px] text-slate-500">1-2 Day Dispatch</p>
-            </div>
-            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <ShieldCheck className="w-4 sm:w-5 h-4 sm:h-5 text-emerald-600 mx-auto mb-1" />
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-900">Official Warranty</p>
-              <p className="text-[9px] sm:text-[10px] text-slate-500">{product.warranty || '1 Year Brand'}</p>
-            </div>
-            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <RotateCcw className="w-4 sm:w-5 h-4 sm:h-5 text-blue-600 mx-auto mb-1" />
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-900">7-Day Returns</p>
-              <p className="text-[9px] sm:text-[10px] text-slate-500">Hassle Free</p>
             </div>
           </div>
         </div>

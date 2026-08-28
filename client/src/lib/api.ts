@@ -354,5 +354,98 @@ export const api = {
       console.warn('Backend deleteProduct error:', err);
       throw err;
     }
+  },
+
+  // User Profile & Custom Addresses & Password Management
+  async getUserProfile(userId: string, params?: { email?: string; fullName?: string; provider?: string }) {
+    try {
+      const res = await apiClient.get(`/users/profile/${userId}`, { params });
+      if (res.data && res.data.success) {
+        return res.data.profile;
+      }
+    } catch (err) {
+      console.warn('Backend getUserProfile unavailable');
+    }
+    return null;
+  },
+
+  async updateUserProfile(userId: string, data: any) {
+    try {
+      const res = await apiClient.post(`/users/profile/${userId}`, data);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend updateUserProfile error:', err);
+      throw err;
+    }
+  },
+
+  async addUserAddress(userId: string, addressData: any) {
+    try {
+      const res = await apiClient.post(`/users/profile/${userId}/addresses`, addressData);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend addUserAddress error:', err);
+      throw err;
+    }
+  },
+
+  async updateUserAddress(userId: string, addressId: string, addressData: any) {
+    try {
+      const res = await apiClient.put(`/users/profile/${userId}/addresses/${addressId}`, addressData);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend updateUserAddress error:', err);
+      throw err;
+    }
+  },
+
+  async deleteUserAddress(userId: string, addressId: string) {
+    try {
+      const res = await apiClient.delete(`/users/profile/${userId}/addresses/${addressId}`);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend deleteUserAddress error:', err);
+      throw err;
+    }
+  },
+
+  async setDefaultUserAddress(userId: string, addressId: string) {
+    try {
+      const res = await apiClient.put(`/users/profile/${userId}/addresses/${addressId}/default`);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend setDefaultUserAddress error:', err);
+      throw err;
+    }
+  },
+
+  async sendPasswordVerificationCode(email: string, type: 'create' | 'reset' = 'create') {
+    try {
+      const res = await apiClient.post('/users/password/send-code', { email, type });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend sendPasswordVerificationCode error:', err);
+      throw err;
+    }
+  },
+
+  async verifyAndSetPassword(payload: { userId?: string; email: string; code: string; newPassword: string }) {
+    try {
+      const res = await apiClient.post('/users/password/verify-and-set', payload);
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend verifyAndSetPassword error:', err);
+      throw err;
+    }
+  },
+
+  async checkPhoneAvailability(phone: string, userId?: string) {
+    try {
+      const res = await apiClient.get('/users/check-phone', { params: { phone, userId } });
+      return res.data;
+    } catch (err) {
+      console.warn('Backend checkPhoneAvailability error:', err);
+      return { available: true };
+    }
   }
 };

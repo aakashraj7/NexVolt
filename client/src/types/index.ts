@@ -103,3 +103,32 @@ export interface Order {
 }
 
 export type SortOption = 'featured' | 'price_asc' | 'price_desc' | 'rating' | 'discount' | 'popular';
+
+export interface UserAddress {
+  _id?: string;
+  label: string; // e.g. "Home", "Office", "Studio", "Custom"
+  customLabel?: string;
+  recipientName: string;
+  phone: string;
+  street: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  isDefault?: boolean;
+}
+
+export interface UserProfile {
+  _id?: string;
+  userId: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | '';
+  dateOfBirth?: string;
+  authProvider?: string;
+  hasPassword?: boolean;
+  addresses: UserAddress[];
+  onboardingCompleted?: boolean;
+}

@@ -7,11 +7,13 @@ import {
   Zap,
   Lock,
   Loader2,
-  PackageCheck
+  PackageCheck,
+  MapPin
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
+import type { UserAddress } from '../types';
 
 export const CheckoutPage: React.FC = () => {
   const { cart, subtotal, discount, shipping, tax, totalAmount, clearCart, coupon } = useCart();
@@ -26,19 +28,58 @@ export const CheckoutPage: React.FC = () => {
   const [state, setState] = useState('');
   const [pincode, setPincode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi' | 'cod'>('razorpay');
+  const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCompleted, setOrderCompleted] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState('');
 
-  // Autofill user info if signed in with Clerk
+  // Autofill user info and load saved addresses if signed in
   useEffect(() => {
     if (user) {
       if (user.fullName) setName(user.fullName);
       if (user.primaryEmailAddress?.emailAddress) setEmail(user.primaryEmailAddress.emailAddress);
+
+      const loadUserProfile = async () => {
+        try {
+          const profile = await api.getUserProfile(user.id, {
+            email: user.primaryEmailAddress?.emailAddress || '',
+            fullName: user.fullName || ''
+          });
+
+          if (profile?.addresses && profile.addresses.length > 0) {
+            setSavedAddresses(profile.addresses);
+            const defaultAddr = profile.addresses.find((a: UserAddress) => a.isDefault) || profile.addresses[0];
+            if (defaultAddr) {
+              setSelectedAddressId(defaultAddr._id || null);
+              setName(defaultAddr.recipientName || user.fullName || '');
+              setPhone(defaultAddr.phone || '');
+              setStreet(defaultAddr.street || '');
+              setCity(defaultAddr.city || '');
+              setState(defaultAddr.state || '');
+              setPincode(defaultAddr.postalCode || '');
+            }
+          }
+        } catch (err) {
+          console.warn('Error loading user profile for checkout:', err);
+        }
+      };
+
+      loadUserProfile();
     }
   }, [user]);
+
+  const handleSelectSavedAddress = (addr: UserAddress) => {
+    setSelectedAddressId(addr._id || null);
+    setName(addr.recipientName);
+    setPhone(addr.phone);
+    setStreet(addr.street);
+    setCity(addr.city);
+    setState(addr.state);
+    setPincode(addr.postalCode);
+  };
 
   // Initiate backend order session when cart is ready
   useEffect(() => {
@@ -195,12 +236,56 @@ export const CheckoutPage: React.FC = () => {
           <div className="lg:col-span-7 space-y-6">
             {/* Step 1: Customer & Shipping Address */}
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-cyan-600 text-white text-xs font-extrabold flex items-center justify-center">
-                  1
-                </span>
-                <span>Shipping & Delivery Details</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#0066FF] text-white text-xs font-extrabold flex items-center justify-center">
+                    1
+                  </span>
+                  <span>Shipping & Delivery Details</span>
+                </h3>
+
+                {savedAddresses.length > 0 && (
+                  <Link to="/profile" className="text-xs text-[#0066FF] hover:underline font-bold">
+                    Manage Addresses →
+                  </Link>
+                )}
+              </div>
+
+              {/* Saved Address Quick Selector */}
+              {savedAddresses.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Choose from saved delivery locations:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {savedAddresses.map((addr) => (
+                      <button
+                        key={addr._id}
+                        type="button"
+                        onClick={() => handleSelectSavedAddress(addr)}
+                        className={`p-3 rounded-xl border text-left transition ${
+                          selectedAddressId === addr._id
+                            ? 'border-[#0066FF] bg-blue-50/50 ring-1 ring-[#0066FF]'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-[#0066FF]" />
+                            {addr.label}
+                          </span>
+                          {addr.isDefault && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-[#0066FF]">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-600 truncate">{addr.street}, {addr.city}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
                 <div>
