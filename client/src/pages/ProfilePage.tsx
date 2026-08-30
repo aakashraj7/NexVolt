@@ -43,13 +43,8 @@ export const ProfilePage: React.FC = () => {
   const [deactivateConfirmText, setDeactivateConfirmText] = useState('');
   const [isDeactivating, setIsDeactivating] = useState(false);
 
-  // Phone Verification Modal states
+  // Phone Verification Notice Modal state
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
-  const [phoneToVerify, setPhoneToVerify] = useState('');
-  const [phoneVerifyOtp, setPhoneVerifyOtp] = useState('');
-  const [phoneSending, setPhoneSending] = useState(false);
-  const [phoneVerifying, setPhoneVerifying] = useState(false);
-  const [phoneOtpCountdown, setPhoneOtpCountdown] = useState(0);
 
   // Email Verification Modal states
   const [showEmailVerifyModal, setShowEmailVerifyModal] = useState(false);
@@ -66,15 +61,7 @@ export const ProfilePage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [tabParam]);
 
-  // Countdown timer for OTP resend
-  useEffect(() => {
-    let timer: any;
-    if (phoneOtpCountdown > 0) {
-      timer = setInterval(() => setPhoneOtpCountdown(prev => prev - 1), 1000);
-    }
-    return () => clearInterval(timer);
-  }, [phoneOtpCountdown]);
-
+  // Countdown timer for email OTP resend
   useEffect(() => {
     let timer: any;
     if (emailOtpCountdown > 0) {
@@ -97,11 +84,16 @@ export const ProfilePage: React.FC = () => {
       const email = user.primaryEmailAddress?.emailAddress || '';
       const name = user.fullName || '';
       const isGoogle = user.externalAccounts?.some((acc: any) => acc.provider === 'google' || acc.provider === 'oauth_google');
+      const isEmailVerified = Boolean(
+        isGoogle ||
+        user.primaryEmailAddress?.verification?.status === 'verified'
+      );
 
       const data = await api.getUserProfile(user.id, {
         email,
         fullName: name,
-        provider: isGoogle ? 'google' : 'email_password'
+        provider: isGoogle ? 'google' : 'email_password',
+        isEmailVerified
       });
 
       if (data) {
@@ -146,9 +138,13 @@ export const ProfilePage: React.FC = () => {
 
     try {
       setSavingProfile(true);
+      const cleanOld = (profile?.phone || '').toString().replace(/\D/g, '').slice(-10);
+      const cleanNew = phone.toString().replace(/\D/g, '').slice(-10);
+      const phoneChanged = cleanOld && cleanNew && cleanOld !== cleanNew;
+
       const updateData = {
         fullName,
-        phone: phone.replace(/\D/g, '').slice(-10),
+        phone: cleanNew,
         gender,
         dateOfBirth
       };
@@ -156,7 +152,11 @@ export const ProfilePage: React.FC = () => {
       const res = await api.updateUserProfile(user.id, updateData);
       if (res.profile) {
         setProfile(res.profile);
-        showToast('Profile information updated successfully!', 'success');
+        if (phoneChanged) {
+          showToast('Mobile number updated. Please verify your new mobile number.', 'info');
+        } else {
+          showToast('Profile information updated successfully!', 'success');
+        }
       }
     } catch (err: any) {
       console.error('Error updating profile:', err);
@@ -167,81 +167,32 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  // 1. Mobile Phone Verification Handlers
+  // 1. Mobile Phone Verification Notice Handler
   const handleOpenPhoneVerify = () => {
-    const clean = (phone || profile?.phone || '').replace(/\D/g, '').slice(-10);
-    setPhoneToVerify(clean);
-    setPhoneVerifyOtp('');
     setShowPhoneVerifyModal(true);
   };
 
-  const handleSendPhoneOtp = async () => {
-    const cleanPhone = phoneToVerify.replace(/\D/g, '').slice(-10);
-    if (cleanPhone.length !== 10) {
-      showToast('Please enter a valid 10-digit mobile number.', 'error');
-      return;
-    }
-    if (!user) return;
-
-    try {
-      setPhoneSending(true);
-      const res = await api.sendPhoneOtp(user.id, cleanPhone);
-      showToast(res.message || '6-digit verification code sent to +91 ' + cleanPhone, 'success');
-      setPhoneOtpCountdown(60);
-      if (res.testOtp) {
-        console.log('[Dev Note] Phone Verification OTP:', res.testOtp);
-      }
-    } catch (err: any) {
-      console.error('Error sending phone OTP:', err);
-      showToast(err.response?.data?.message || 'Failed to send phone verification code.', 'error');
-    } finally {
-      setPhoneSending(false);
-    }
-  };
-
-  const handleVerifyPhoneOtp = async () => {
-    if (!phoneVerifyOtp || phoneVerifyOtp.length < 6) {
-      showToast('Please enter the complete 6-digit verification code.', 'error');
-      return;
-    }
-    if (!user) return;
-
-    try {
-      setPhoneVerifying(true);
-      const res = await api.verifyPhoneOtp(user.id, phoneToVerify, phoneVerifyOtp);
-      if (res.success) {
-        showToast('Mobile phone verified successfully!', 'success');
-        try {
-          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-        } catch {}
-        setShowPhoneVerifyModal(false);
-        await fetchProfile();
-      }
-    } catch (err: any) {
-      console.error('Error verifying phone OTP:', err);
-      showToast(err.response?.data?.message || 'Invalid or expired verification code.', 'error');
-    } finally {
-      setPhoneVerifying(false);
-    }
-  };
-
-  // 2. Email Verification Handlers (for non-Google users)
-  const handleOpenEmailVerify = () => {
-    setEmailVerifyOtp('');
-    setShowEmailVerifyModal(true);
-  };
-
+  // 2. Real Email Verification Handlers
   const handleSendEmailOtp = async () => {
     if (!user) return;
-    const targetEmail = user.primaryEmailAddress?.emailAddress || profile?.email || '';
+    const targetEmail = user.primaryEmailAddress?.emailAddress || profile?.email || email || '';
     try {
       setEmailSending(true);
-      const res = await api.sendEmailOtp(user.id, targetEmail);
-      showToast(res.message || '6-digit verification code sent to your email.', 'success');
-      setEmailOtpCountdown(60);
-      if (res.testOtp) {
-        console.log('[Dev Note] Email Verification OTP:', res.testOtp);
+      
+      // 1. Send real verification email via Clerk's email service directly to user's inbox
+      if (user.primaryEmailAddress && user.primaryEmailAddress.verification?.status !== 'verified') {
+        try {
+          await user.primaryEmailAddress.prepareVerification({ strategy: 'email_code' });
+        } catch (clerkErr: any) {
+          console.warn('Clerk email delivery status:', clerkErr);
+        }
       }
+
+      // 2. Also register verification request with backend
+      await api.sendEmailOtp(user.id, targetEmail);
+
+      showToast(`Verification code sent to ${targetEmail}. Please check your email inbox.`, 'success');
+      setEmailOtpCountdown(60);
     } catch (err: any) {
       console.error('Error sending email OTP:', err);
       showToast(err.response?.data?.message || 'Failed to send email verification code.', 'error');
@@ -250,18 +201,39 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleOpenEmailVerify = () => {
+    setEmailVerifyOtp('');
+    setShowEmailVerifyModal(true);
+    handleSendEmailOtp();
+  };
+
   const handleVerifyEmailOtp = async () => {
     if (!emailVerifyOtp || emailVerifyOtp.length < 6) {
-      showToast('Please enter the complete 6-digit verification code.', 'error');
+      showToast('Please enter the complete 6-digit verification code from your email.', 'error');
       return;
     }
     if (!user) return;
 
     try {
       setEmailVerifying(true);
+      
+      // 1. Verify with Clerk's email verification engine
+      let clerkVerified = false;
+      if (user.primaryEmailAddress && user.primaryEmailAddress.verification?.status !== 'verified') {
+        try {
+          const res = await user.primaryEmailAddress.attemptVerification({ code: emailVerifyOtp });
+          if (res.verification?.status === 'verified') {
+            clerkVerified = true;
+          }
+        } catch (clerkErr: any) {
+          console.warn('Clerk email verification:', clerkErr);
+        }
+      }
+
+      // 2. Verify with backend and update MongoDB
       const res = await api.verifyEmailOtp(user.id, emailVerifyOtp);
-      if (res.success) {
-        showToast('Email verified successfully!', 'success');
+      if (res.success || clerkVerified) {
+        showToast('Email verified successfully! You are now a verified customer.', 'success');
         try {
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
         } catch {}
@@ -270,7 +242,7 @@ export const ProfilePage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error verifying email OTP:', err);
-      showToast(err.response?.data?.message || 'Invalid or expired verification code.', 'error');
+      showToast(err.response?.data?.message || 'Invalid or expired verification code. Please check your email.', 'error');
     } finally {
       setEmailVerifying(false);
     }
@@ -320,10 +292,15 @@ export const ProfilePage: React.FC = () => {
   const email = user?.primaryEmailAddress?.emailAddress || profile?.email || '';
   const isGoogle = user?.externalAccounts?.some((acc: any) => acc.provider === 'google' || acc.provider === 'oauth_google');
   
-  // Verification Checks:
-  const isEmailVerified = Boolean(isGoogle || profile?.authProvider === 'google' || profile?.isEmailVerified);
+  // Verification Checks: Email verification grants Verified Customer status
+  const isEmailVerified = Boolean(
+    isGoogle ||
+    profile?.authProvider === 'google' ||
+    profile?.isEmailVerified ||
+    user?.primaryEmailAddress?.verification?.status === 'verified'
+  );
   const isPhoneVerified = Boolean(profile?.isPhoneVerified && (profile?.phone || phone));
-  const isVerifiedCustomer = Boolean(isEmailVerified && isPhoneVerified);
+  const isVerifiedCustomer = Boolean(isEmailVerified);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 animate-in fade-in duration-200">
@@ -655,103 +632,47 @@ export const ProfilePage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 1: Phone Verification Modal */}
+      {/* MODAL 1: Phone SMS Feature Coming Soon Notice Modal */}
       {showPhoneVerifyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 font-poppins">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200">
+          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl lg:rounded-[36px] max-w-md w-full p-6 sm:p-8 border border-white/80 shadow-2xl shadow-blue-500/10 space-y-5 animate-in zoom-in-95 duration-200 relative text-center">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200/80 shadow-2xs">
                 <Smartphone className="w-5 h-5" />
               </div>
               <button
                 onClick={() => setShowPhoneVerifyModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-1">
-              <h3 className="text-lg font-black text-slate-900 font-heading">Verify Mobile Number</h3>
-              <p className="text-xs text-slate-600 font-medium">
-                We'll send a 6-digit verification code to confirm your phone number and unlock customer ordering.
+            <div className="py-2 space-y-3">
+              <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-200 text-[#0066FF] flex items-center justify-center mx-auto shadow-md shadow-blue-500/10">
+                <Smartphone className="w-7 h-7" />
+              </div>
+              
+              <h3 className="text-xl font-black text-slate-900 font-heading">
+                SMS Verification Coming Soon
+              </h3>
+              
+              <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-sm mx-auto">
+                We are currently integrating telecom carrier SMS gateways for direct mobile verification across India (+91). This feature will be live in our upcoming release.
               </p>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Phone (+91)</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">+91</span>
-                    <input
-                      type="tel"
-                      value={phoneToVerify}
-                      onChange={(e) => setPhoneToVerify(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9876543210"
-                      className="w-full pl-12 pr-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#0066FF] text-xs font-mono font-bold outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={phoneSending || phoneOtpCountdown > 0 || phoneToVerify.length !== 10}
-                    onClick={handleSendPhoneOtp}
-                    className="px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 text-xs font-bold transition disabled:opacity-50 cursor-pointer shrink-0"
-                  >
-                    {phoneSending ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : phoneOtpCountdown > 0 ? (
-                      `${phoneOtpCountdown}s`
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <Send className="w-3 h-3" />
-                        <span>Send Code</span>
-                      </span>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Enter 6-Digit OTP Code</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={phoneVerifyOtp}
-                  onChange={(e) => setPhoneVerifyOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="e.g. 123456"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#0066FF] text-center text-lg font-mono font-bold tracking-widest outline-none"
-                />
+              <div className="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-200/80 text-blue-900 text-xs font-medium">
+                Your customer account is fully verified through your <strong>verified Email address</strong>. You can place orders without restrictions!
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowPhoneVerifyModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={phoneVerifying || phoneVerifyOtp.length !== 6}
-                onClick={handleVerifyPhoneOtp}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
-              >
-                {phoneVerifying ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Verifying...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Verify & Confirm Phone</span>
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowPhoneVerifyModal(false)}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition cursor-pointer active:scale-[0.99]"
+            >
+              Got It, Continue
+            </button>
           </div>
         </div>
       )}
@@ -775,7 +696,7 @@ export const ProfilePage: React.FC = () => {
             <div className="space-y-1">
               <h3 className="text-lg font-black text-slate-900 font-heading">Verify Email Address</h3>
               <p className="text-xs text-slate-600 font-medium">
-                Click below to send a 6-digit code to <strong className="text-slate-900">{email}</strong>.
+                A 6-digit verification code has been dispatched to <strong className="text-slate-900">{email}</strong>. Please check your inbox or spam folder.
               </p>
             </div>
 
@@ -797,7 +718,7 @@ export const ProfilePage: React.FC = () => {
                   ) : (
                     <span className="flex items-center gap-1">
                       <Send className="w-3 h-3" />
-                      <span>Send 6-Digit Code</span>
+                      <span>Resend Code</span>
                     </span>
                   )}
                 </button>

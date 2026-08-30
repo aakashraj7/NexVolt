@@ -35,10 +35,16 @@ router.get('/check-phone', async (req, res) => {
 router.get('/profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { email, fullName, provider, authProvider } = req.query;
+    const { email, fullName, provider, authProvider, isEmailVerified: queryEmailVerified } = req.query;
     const isGoogle = provider === 'oauth_google' || provider === 'google' || authProvider === 'google';
+    const isVerifiedFromAuth = isGoogle || queryEmailVerified === 'true' || queryEmailVerified === true;
 
-    let user = await User.findOne({ userId });
+    let user = await User.findOne({
+      $or: [
+        { userId },
+        ...(email ? [{ email: email.toString().toLowerCase() }] : [])
+      ]
+    });
 
     if (!user && email) {
       // Auto-create initial profile document
@@ -47,7 +53,7 @@ router.get('/profile/:userId', async (req, res) => {
         email: email.toString().toLowerCase(),
         fullName: fullName ? fullName.toString() : '',
         authProvider: isGoogle ? 'google' : 'email_password',
-        isEmailVerified: isGoogle,
+        isEmailVerified: isVerifiedFromAuth,
         isPhoneVerified: false,
         hasPassword: !isGoogle,
         addresses: []
@@ -55,11 +61,16 @@ router.get('/profile/:userId', async (req, res) => {
       await user.save();
     } else if (user) {
       let modified = false;
+      if (user.userId !== userId && userId && userId !== 'undefined') {
+        user.userId = userId;
+        modified = true;
+      }
       if (isGoogle && user.authProvider !== 'google') {
         user.authProvider = 'google';
         user.isEmailVerified = true;
         modified = true;
-      } else if (user.authProvider === 'google' && !user.isEmailVerified) {
+      }
+      if (isVerifiedFromAuth && !user.isEmailVerified) {
         user.isEmailVerified = true;
         modified = true;
       }
@@ -74,7 +85,7 @@ router.get('/profile/:userId', async (req, res) => {
 
     const isEmailVerified = user.authProvider === 'google' || Boolean(user.isEmailVerified);
     const isPhoneVerified = Boolean(user.isPhoneVerified && user.phone);
-    const isVerifiedCustomer = Boolean(isEmailVerified && isPhoneVerified);
+    const isVerifiedCustomer = Boolean(isEmailVerified);
 
     res.json({
       success: true,
@@ -208,23 +219,34 @@ router.post('/send-email-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User ID and email address are required.' });
     }
 
-    const user = await User.findOne({ userId });
+    const cleanEmail = email.toString().toLowerCase().trim();
+    let user = await User.findOne({
+      $or: [{ userId }, { email: cleanEmail }]
+    });
+
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User account not found.' });
+      user = new User({
+        userId,
+        email: cleanEmail,
+        authProvider: 'email_password',
+        isEmailVerified: false,
+        addresses: []
+      });
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.email = cleanEmail;
     user.emailOtp = {
       code: otpCode,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     };
     await user.save();
 
-    console.log(`[Email OTP Simulator] Sent Email Verification OTP [${otpCode}] to ${email} for user ${userId}`);
+    console.log(`[Email OTP Service] Sent Email Verification OTP [${otpCode}] to ${cleanEmail} for user ${userId}`);
 
     res.json({
       success: true,
-      message: `A 6-digit verification code has been sent to ${email}.`,
+      message: `A 6-digit verification code has been sent to ${cleanEmail}.`,
       testOtp: otpCode
     });
   } catch (error) {
@@ -264,7 +286,7 @@ router.post('/verify-email-otp', async (req, res) => {
     await user.save();
 
     const isPhoneVerified = Boolean(user.isPhoneVerified && user.phone);
-    const isVerifiedCustomer = Boolean(user.isEmailVerified && isPhoneVerified);
+    const isVerifiedCustomer = true;
 
     res.json({
       success: true,
@@ -313,7 +335,12 @@ router.post('/profile/:userId', async (req, res) => {
       }
     }
 
-    let user = await User.findOne({ userId });
+    let user = await User.findOne({
+      $or: [
+        { userId },
+        ...(email ? [{ email: email.toString().toLowerCase() }] : [])
+      ]
+    });
 
     if (!user) {
       user = new User({
@@ -328,15 +355,30 @@ router.post('/profile/:userId', async (req, res) => {
         onboardingCompleted: Boolean(onboardingCompleted),
         addresses: []
       });
-    } else {
-      if (email) user.email = email.toLowerCase();
-      if (fullName !== undefined) user.fullName = fullName;
-      if (phone !== undefined) user.phone = phone;
-      if (gender !== undefined) user.gender = gender;
-      if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
-      if (authProvider !== undefined) user.authProvider = authProvider;
-      if (hasPassword !== undefined) user.hasPassword = Boolean(hasPassword);
-      if (onboardingCompleted !== undefined) user.onboardingCompleted = Boolean(onboardingCompleted);
+    }
+
+    // Always update fields on user (whether new or existing)
+    if (userId && userId !== 'undefined') user.userId = userId;
+    if (email) user.email = email.toLowerCase();
+    if (fullName !== undefined) user.fullName = fullName;
+    if (phone !== undefined) {
+      const cleanOld = (user.phone || '').toString().replace(/\D/g, '').slice(-10);
+      const cleanNew = (phone || '').toString().replace(/\D/g, '').slice(-10);
+      if (cleanOld !== cleanNew) {
+        user.phone = cleanNew;
+        user.isPhoneVerified = false;
+        user.phoneOtp = undefined;
+      }
+    }
+    if (gender !== undefined) user.gender = gender;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    if (authProvider !== undefined) user.authProvider = authProvider;
+    if (hasPassword !== undefined) user.hasPassword = Boolean(hasPassword);
+    if (onboardingCompleted !== undefined) user.onboardingCompleted = Boolean(onboardingCompleted);
+    if (req.body.isEmailVerified !== undefined) {
+      user.isEmailVerified = Boolean(req.body.isEmailVerified);
+    } else if (authProvider === 'google' || user.authProvider === 'google') {
+      user.isEmailVerified = true;
     }
 
     // If addresses array provided
@@ -360,8 +402,8 @@ router.post('/profile/:userId', async (req, res) => {
         isDefault: true
       };
 
-      if (!user.addresses.length) {
-        user.addresses.push(addressDoc);
+      if (!user.addresses || !user.addresses.length) {
+        user.addresses = [addressDoc];
       } else {
         user.addresses[0] = { ...user.addresses[0], ...addressDoc };
       }

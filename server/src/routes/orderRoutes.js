@@ -35,15 +35,13 @@ router.post('/initiate', async (req, res) => {
 
     if (user) {
       const isEmailVerified = user.authProvider === 'google' || Boolean(user.isEmailVerified);
-      const isPhoneVerified = Boolean(user.isPhoneVerified);
 
-      if (!isEmailVerified || !isPhoneVerified) {
+      if (!isEmailVerified) {
         return res.status(403).json({
           success: false,
           isVerificationRequired: true,
           isEmailVerified,
-          isPhoneVerified,
-          message: 'Account verification required. Both your Email and Mobile Phone must be verified before placing an order.'
+          message: 'Account verification required. Please verify your email address before placing an order.'
         });
       }
     }
@@ -96,19 +94,65 @@ router.post('/:orderId/abandon', async (req, res) => {
   }
 });
 
-// POST /api/orders/:orderId/complete - Complete order & clear user cart
-router.post('/:orderId/complete', async (req, res) => {
+// GET /api/orders/single/:orderId - Fetch a single order by orderId
+router.get('/single/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { paymentId, isRecovered = false } = req.body;
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching order', error: error.message });
+  }
+});
+
+// POST /api/orders/:orderId/fail - Mark order payment as failed / cancelled
+router.post('/:orderId/fail', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { reason = 'Payment cancelled by user' } = req.body;
 
     const order = await Order.findOne({ orderId });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    order.paymentStatus = 'paid';
+    order.paymentStatus = 'failed';
+    order.failureReason = reason;
+    order.checkoutStatus = 'abandoned';
+    order.abandonedAt = new Date();
+    await order.save();
+
+    res.json({ success: true, message: 'Order payment marked as failed', order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating failed order', error: error.message });
+  }
+});
+
+// POST /api/orders/:orderId/complete - Complete order & clear user cart
+router.post('/:orderId/complete', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { paymentId = '', paymentMethod, isRecovered = false } = req.body;
+
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (paymentMethod) {
+      order.paymentMethod = paymentMethod;
+    }
+    if (paymentId) {
+      order.paymentId = paymentId;
+    }
+
+    order.paymentStatus = order.paymentMethod.toLowerCase().includes('delivery') || order.paymentMethod.toLowerCase().includes('cod') ? 'pending' : 'paid';
     order.checkoutStatus = isRecovered ? 'recovered' : 'completed';
+    order.merchantNotified = true;
+
     if (isRecovered) {
       order.recoveryMetadata.isRecovered = true;
     }

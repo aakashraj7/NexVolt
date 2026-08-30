@@ -269,6 +269,10 @@ export const OnboardingPage: React.FC = () => {
       }));
 
       const isGoogle = user.externalAccounts?.some(acc => acc.provider === 'google');
+      const isEmailVerified = Boolean(
+        isGoogle ||
+        user.primaryEmailAddress?.verification?.status === 'verified'
+      );
 
       const payload = {
         email: user.primaryEmailAddress?.emailAddress,
@@ -278,6 +282,7 @@ export const OnboardingPage: React.FC = () => {
         dateOfBirth,
         authProvider: isGoogle ? 'google' : 'email_password',
         onboardingCompleted: true,
+        isEmailVerified,
         addresses: formattedAddresses
       };
 

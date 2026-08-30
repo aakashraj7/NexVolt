@@ -44,11 +44,14 @@ const orderSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   currency: { type: String, default: 'INR' },
   paymentMethod: { type: String, default: 'Razorpay' },
+  paymentId: { type: String, default: '' },
+  failureReason: { type: String, default: '' },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
+  merchantNotified: { type: Boolean, default: true },
   // Revenue Recovery Tracking fields (Track 3)
   checkoutStatus: {
     type: String,

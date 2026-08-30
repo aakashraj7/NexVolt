@@ -13,7 +13,12 @@ import {
   CheckCircle2,
   Loader2,
   Zap,
-  Settings
+  Settings,
+  Eye,
+  X,
+  MapPin,
+  Phone,
+  Mail
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, Order } from '../types';
@@ -41,6 +46,9 @@ export const MerchantDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Order Details Modal state
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
 
   // Product Studio Modal states
   const [showStudioModal, setShowStudioModal] = useState(false);
@@ -400,10 +408,10 @@ export const MerchantDashboard: React.FC = () => {
                   <tr>
                     <th className="px-6 py-3.5">Order ID</th>
                     <th className="px-4 py-3.5">Customer</th>
-                    <th className="px-4 py-3.5">Items</th>
+                    <th className="px-4 py-3.5">Items Ordered</th>
                     <th className="px-4 py-3.5">Total Amount</th>
                     <th className="px-4 py-3.5">Payment</th>
-                    <th className="px-6 py-3.5 text-right">Status Action</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -417,7 +425,27 @@ export const MerchantDashboard: React.FC = () => {
                         <p className="text-[11px] text-slate-500">{o.customerDetails?.email}</p>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="font-semibold text-slate-800">{o.items?.length || 0} electronics items</span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {o.items?.slice(0, 3).map((item: any, idx: number) => (
+                              <img
+                                key={idx}
+                                src={item.thumbnail || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&q=80'}
+                                alt={item.title}
+                                title={`${item.title} (x${item.quantity})`}
+                                className="w-9 h-9 rounded-lg object-cover bg-slate-100 border border-slate-200 shadow-2xs shrink-0"
+                              />
+                            ))}
+                            {o.items && o.items.length > 3 && (
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                +{o.items.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-800 line-clamp-1 max-w-[220px]">
+                            {o.items?.map(i => `${i.quantity}x ${i.title}`).join(', ')}
+                          </p>
+                        </div>
                       </td>
                       <td className="px-4 py-4 font-mono font-bold text-slate-900">
                         ₹{o.totalAmount?.toLocaleString('en-IN')}
@@ -430,16 +458,27 @@ export const MerchantDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <select
-                          value={o.paymentStatus}
-                          onChange={(e) => handleUpdateOrderStatus(o.orderId, e.target.value)}
-                          className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 outline-none"
-                        >
-                          <option value="paid">Paid & Verified</option>
-                          <option value="pending">Pending</option>
-                          <option value="shipped">Dispatched (Express)</option>
-                          <option value="delivered">Delivered</option>
-                        </select>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderDetails(o)}
+                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                            title="View Full Order Details"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View Details</span>
+                          </button>
+                          <select
+                            value={o.paymentStatus}
+                            onChange={(e) => handleUpdateOrderStatus(o.orderId, e.target.value)}
+                            className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none font-medium cursor-pointer"
+                          >
+                            <option value="paid">Paid & Verified</option>
+                            <option value="pending">Pending</option>
+                            <option value="shipped">Dispatched (Express)</option>
+                            <option value="delivered">Delivered</option>
+                          </select>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -532,6 +571,130 @@ export const MerchantDashboard: React.FC = () => {
                   <p className="text-xs text-slate-400 py-6 text-center">AI recovery agent actively monitoring customer sessions.</p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Full Breakdown & Customer Details Modal */}
+      {selectedOrderDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 font-poppins">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-mono">Order Details</span>
+                <h2 className="text-xl font-black text-slate-900 font-heading flex items-center gap-2">
+                  <span>{selectedOrderDetails.orderId}</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                    selectedOrderDetails.paymentStatus === 'paid'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    {selectedOrderDetails.paymentStatus}
+                  </span>
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderDetails(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Customer Shipping & Contact Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#0066FF]" />
+                <span>Customer Shipping Information</span>
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 font-medium">
+                <div>
+                  <p className="font-bold text-slate-900 text-sm">{selectedOrderDetails.customerDetails?.name || 'Customer'}</p>
+                  <p className="flex items-center gap-1 text-slate-500 pt-0.5"><Mail className="w-3 h-3 text-slate-400" /> {selectedOrderDetails.customerDetails?.email}</p>
+                  {selectedOrderDetails.customerDetails?.phone && (
+                    <p className="flex items-center gap-1 text-slate-500 font-mono"><Phone className="w-3 h-3 text-slate-400" /> +91 {selectedOrderDetails.customerDetails?.phone}</p>
+                  )}
+                </div>
+                <div className="border-t sm:border-t-0 sm:border-l sm:border-slate-200 pt-2 sm:pt-0 sm:pl-3">
+                  <p className="font-bold text-slate-700">Delivery Address:</p>
+                  <p>{selectedOrderDetails.customerDetails?.address?.street || 'N/A'}</p>
+                  <p>{selectedOrderDetails.customerDetails?.address?.city}, {selectedOrderDetails.customerDetails?.address?.state} - {selectedOrderDetails.customerDetails?.address?.pincode}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Ordered Products Itemized List */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
+                <span>Ordered Products ({selectedOrderDetails.items?.reduce((acc, i) => acc + (i.quantity || 1), 0) || 0} units)</span>
+                <span className="font-mono text-[#0066FF]">Payment: {selectedOrderDetails.paymentMethod || 'Razorpay'}</span>
+              </h4>
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+                {selectedOrderDetails.items?.map((item: any, idx: number) => (
+                  <div key={idx} className="p-3.5 bg-white flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={item.thumbnail || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&q=80'}
+                        alt={item.title}
+                        className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-slate-900 line-clamp-1">{item.title}</p>
+                        <p className="text-[11px] text-slate-500 font-medium">Unit Price: ₹{item.price?.toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-bold text-slate-500">Qty: {item.quantity}</span>
+                      <p className="text-xs font-black font-mono text-slate-900">
+                        ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Financials & Status Controls */}
+            <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-0.5 text-xs text-slate-600">
+                <div className="flex justify-between gap-6"><span>Subtotal:</span> <span className="font-mono font-bold text-slate-900">₹{selectedOrderDetails.subtotal?.toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between gap-6"><span>GST (18%):</span> <span className="font-mono font-bold text-slate-900">₹{selectedOrderDetails.tax?.toLocaleString('en-IN') || 0}</span></div>
+                <div className="flex justify-between gap-6"><span>Express Shipping:</span> <span className="font-bold text-emerald-600">FREE</span></div>
+                <div className="flex justify-between gap-6 font-bold text-slate-900 pt-1 border-t border-blue-200 text-sm">
+                  <span>Total Paid Amount:</span> <span className="font-mono text-[#0066FF] font-black">₹{selectedOrderDetails.totalAmount?.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+
+              <div className="w-full sm:w-auto space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-700">Update Fulfillment Status:</label>
+                <select
+                  value={selectedOrderDetails.paymentStatus}
+                  onChange={(e) => {
+                    handleUpdateOrderStatus(selectedOrderDetails.orderId, e.target.value);
+                    setSelectedOrderDetails({ ...selectedOrderDetails, paymentStatus: e.target.value as any });
+                  }}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none cursor-pointer shadow-2xs"
+                >
+                  <option value="paid">Paid & Verified (Preparing)</option>
+                  <option value="pending">Pending</option>
+                  <option value="shipped">Dispatched (Express)</option>
+                  <option value="delivered">Delivered</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Close Action */}
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedOrderDetails(null)}
+                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
+              >
+                Close Order Details
+              </button>
             </div>
           </div>
         </div>

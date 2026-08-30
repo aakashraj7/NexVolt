@@ -40,6 +40,7 @@ import { MerchantDashboard } from './pages/MerchantDashboard';
 import { MerchantProfilePage } from './pages/MerchantProfilePage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { OrderProcessingPage } from './pages/OrderProcessingPage';
 import { SSOCallbackPage } from './pages/SSOCallback';
 
 import { ToastProvider, useToast, setFlashToast } from './context/ToastContext';
@@ -213,6 +214,8 @@ export function App() {
                     <Route path="/sign-up/*" element={<SignUpPage />} />
                     <Route path="/sso-callback" element={<SSOCallbackPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/order/processing/:orderId" element={<OrderProcessingPage />} />
+                    <Route path="/order-status/:orderId" element={<OrderProcessingPage />} />
                     <Route path="/orders" element={<OrdersPage />} />
 
                     {/* Dedicated Merchant & Seller Portal Routes */}

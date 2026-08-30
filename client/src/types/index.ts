@@ -99,7 +99,7 @@ export interface Order {
   totalAmount: number;
   currency: string;
   paymentMethod: string;
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'shipped' | 'delivered' | string;
   checkoutStatus: 'initiated' | 'abandoned' | 'recovered' | 'completed';
   createdAt?: string;
 }

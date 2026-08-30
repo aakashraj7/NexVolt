@@ -259,14 +259,38 @@ export const api = {
     };
   },
 
-  async completeOrder(orderId: string, paymentId: string) {
+  async getOrderById(orderId: string) {
     try {
-      const res = await apiClient.post(`/orders/${orderId}/complete`, { paymentId });
+      const res = await apiClient.get(`/orders/single/${orderId}`);
+      if (res.data && res.data.success) {
+        return res.data.order;
+      }
+    } catch (err) {
+      console.warn('Backend getOrderById unavailable');
+    }
+    return null;
+  },
+
+  async completeOrder(orderId: string, paymentId?: string, paymentMethod?: string) {
+    try {
+      const res = await apiClient.post(`/orders/${orderId}/complete`, { paymentId, paymentMethod });
       if (res.data && res.data.success) {
         return res.data;
       }
     } catch (err) {
       console.warn('Backend completeOrder unavailable');
+    }
+    return { success: true };
+  },
+
+  async failOrder(orderId: string, reason?: string) {
+    try {
+      const res = await apiClient.post(`/orders/${orderId}/fail`, { reason });
+      if (res.data && res.data.success) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend failOrder unavailable');
     }
     return { success: true };
   },

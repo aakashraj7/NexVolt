@@ -5,99 +5,281 @@ export const MOCK_CATEGORIES: Category[] = [
     name: "Smartphones",
     count: 12,
     icon: "Smartphone",
-    image: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&q=80",
-    description: "Flagships, foldable phones, and 5G powerhouses"
+    image: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80",
+    description: "5G smartphones, AMOLED displays, and mobile accessories"
   },
   {
     name: "Laptops & Computers",
     count: 16,
     icon: "Laptop",
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=80",
-    description: "Pro creator workstations, OLED ultrabooks, and gaming beasts"
+    image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&q=80",
+    description: "Tablets, mechanical keyboards, precision mice, and monitors"
   },
   {
     name: "Audio & Headphones",
     count: 24,
     icon: "Headphones",
     image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&q=80",
-    description: "Spatial audio, ANC headphones, and studio monitors"
+    description: "Spatial audio, ANC over-ear headphones, and portable speakers"
   },
   {
     name: "Smartwatches & Wearables",
     count: 15,
     icon: "Watch",
     image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80",
-    description: "Fitness trackers, titanium adventure watches, and health bands"
+    description: "Super AMOLED health watches, fitness bands, and trackers"
   },
   {
     name: "Gaming & VR",
     count: 18,
     icon: "Gamepad2",
-    image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&q=80",
-    description: "Next-gen consoles, VR headsets, and ultra-fast controllers"
-  },
-  {
-    name: "Cameras & Drones",
-    count: 9,
-    icon: "Camera",
-    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&q=80",
-    description: "4K cine drones, mirrorless full-frame sensors, and gimbals"
+    image: "https://images.unsplash.com/photo-1606318801954-d46d46d3360a?w=600&q=80",
+    description: "Pro custom controllers, 300-hour gaming headsets, and gear"
   },
   {
     name: "Accessories & Power",
     count: 32,
     icon: "Zap",
     image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=600&q=80",
-    description: "250W GaN power banks, custom mechanical keyboards, and docks"
+    description: "140W GaN power banks, charging cables, and cleaning kits"
   }
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
+  // Budget Category Products (Under ₹1,000)
   {
-    _id: "660000000000000000000001",
-    title: "Apple MacBook Pro 16\" (M3 Max, 36GB, 1TB SSD) - Space Black",
-    slug: "apple-macbook-pro-16-m3-max",
-    brand: "Apple",
+    _id: "660000000000000000000021",
+    title: "Portronics Toad 23 Wireless Optical Mouse (2.4GHz Nano USB Dongle, 1200 DPI)",
+    slug: "portronics-toad-23-wireless-mouse",
+    brand: "Portronics",
     category: "Laptops & Computers",
-    subCategory: "Laptops",
-    price: 349900,
-    originalPrice: 389900,
-    discountPercent: 10,
-    rating: 4.9,
-    numReviews: 328,
-    thumbnail: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80",
+    subCategory: "Keyboards & Mice",
+    price: 299,
+    originalPrice: 699,
+    discountPercent: 57,
+    rating: 4.6,
+    numReviews: 890,
+    thumbnail: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80",
     images: [
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80",
-      "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=800&q=80",
-      "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=800&q=80"
+      "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80",
+      "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=800&q=80"
     ],
-    badge: "NexVolt Choice",
     isFeatured: true,
     isDeal: true,
-    shortDescription: "Extreme performance with M3 Max 16-core CPU, 40-core GPU, and Liquid Retina XDR display.",
-    description: "The 16-inch MacBook Pro blasts forward with M3 Max, an exceptionally advanced chip that brings massive performance and capabilities for extreme workflows. With industry-leading battery life—up to 22 hours—and a gorgeous Liquid Retina XDR display, it's a pro laptop without equal.",
+    shortDescription: "Ergonomic 2.4GHz wireless mouse with high-precision optical tracking and silent clicks.",
+    description: "Portronics Toad 23 is a lightweight ergonomic wireless mouse engineered for smooth, hassle-free navigation with 10-meter range.",
     highlights: [
-      "Apple M3 Max chip with 16-core CPU and 40-core GPU",
-      "36GB Unified Memory + 1TB Ultra-fast SSD",
-      "16.2-inch Liquid Retina XDR display (120Hz ProMotion, 1600 nits peak HDR)",
-      "Up to 22 hours battery life on single charge",
-      "Three Thunderbolt 4 ports, HDMI port, SDXC card slot, MagSafe 3"
+      "2.4GHz wireless connection with plug-and-play USB nano receiver",
+      "1200 DPI high-precision optical sensor",
+      "Ergonomic contoured shape designed for palm comfort"
     ],
     specs: [
-      { key: "Processor", value: "Apple M3 Max (16-core CPU)" },
-      { key: "Graphics", value: "40-core GPU with Hardware-accelerated ray tracing" },
-      { key: "RAM", value: "36GB Unified Memory" },
-      { key: "Storage", value: "1TB PCIe NVMe SSD" },
-      { key: "Display", value: "16.2-inch Liquid Retina XDR 3456x2234" },
-      { key: "Weight", value: "2.16 kg" }
+      { key: "DPI", value: "1200 DPI" },
+      { key: "Connectivity", value: "2.4GHz USB Nano Dongle" },
+      { key: "Weight", value: "75g" }
     ],
-    warranty: "1 Year Apple Limited Warranty + AppleCare+ eligible",
+    warranty: "1 Year Manufacturer Warranty",
     freeDelivery: true,
-    tags: ["macbook", "apple", "laptop", "m3", "pro", "ultrabook", "creator"],
-    reviews: [
-      { userName: "Devon Ross", rating: 5, comment: "Unbelievable speed. Renders 8K ProRes video in DaVinci Resolve without even spinning the fans.", date: "2026-08-15" },
-      { userName: "Sara Kapoor", rating: 5, comment: "The display is mesmerizing and battery easily lasts two full workdays for me.", date: "2026-08-10" }
-    ]
+    tags: ["mouse", "wireless", "budget", "portronics", "usb", "optical"]
+  },
+  {
+    _id: "660000000000000000000022",
+    title: "boAt Bassheads 100 In-Ear Wired Earphones with HD Mic - Black Hawk",
+    slug: "boat-bassheads-100-wired-earphones",
+    brand: "boAt",
+    category: "Audio & Headphones",
+    subCategory: "Earbuds",
+    price: 399,
+    originalPrice: 999,
+    discountPercent: 60,
+    rating: 4.7,
+    numReviews: 2450,
+    thumbnail: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&q=80",
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "10mm dynamic drivers with super extra bass and in-line HD microphone for crystal clear calls.",
+    description: "The boAt Bassheads 100 wired earphones deliver a powerful, bass-driven audio experience with hawk-inspired styling.",
+    highlights: [
+      "10mm dynamic drivers delivering signature boAt Super Extra Bass",
+      "In-line microphone with single button music and call control",
+      "Gold-plated 3.5mm jack for lossless audio transmission"
+    ],
+    specs: [
+      { key: "Driver Size", value: "10mm Dynamic" },
+      { key: "Connector", value: "3.5mm Gold-Plated Audio Jack" }
+    ],
+    warranty: "1 Year boAt Brand Warranty",
+    freeDelivery: true,
+    tags: ["boat", "earphones", "bass", "audio", "wired", "mic", "budget"]
+  },
+  {
+    _id: "660000000000000000000023",
+    title: "Anker Powerline+ USB-C to USB-C 60W Fast Charging Braided Cable (6ft / 1.8m)",
+    slug: "anker-powerline-plus-usb-c-cable",
+    brand: "Anker",
+    category: "Accessories & Power",
+    subCategory: "Accessories",
+    price: 499,
+    originalPrice: 999,
+    discountPercent: 50,
+    rating: 4.9,
+    numReviews: 1420,
+    thumbnail: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "Ultra-durable double-braided nylon 60W Power Delivery fast-charging cable with 30,000+ bend lifespan.",
+    description: "Supports 60W Power Delivery fast charging for USB-C laptops, tablets, and phones.",
+    highlights: [
+      "Supports 60W Power Delivery fast charging",
+      "Double-braided nylon exterior with reinforced bulletproof fiber core",
+      "480Mbps high-speed data transfer"
+    ],
+    specs: [
+      { key: "Max Power Output", value: "60W (20V / 3A)" },
+      { key: "Length", value: "6 Feet (1.8 Meters)" }
+    ],
+    warranty: "18 Months Anker Warranty",
+    freeDelivery: true,
+    tags: ["anker", "cable", "usbc", "fastcharging", "braided", "powerdelivery"]
+  },
+  {
+    _id: "660000000000000000000024",
+    title: "SanDisk Ultra 64GB MicroSDXC UHS-I Card (140MB/s A1 Class 10 Full HD)",
+    slug: "sandisk-ultra-64gb-microsd-card",
+    brand: "SanDisk",
+    category: "Accessories & Power",
+    subCategory: "Storage",
+    price: 599,
+    originalPrice: 1100,
+    discountPercent: 46,
+    rating: 4.8,
+    numReviews: 3100,
+    thumbnail: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&q=80"
+    ],
+    isFeatured: false,
+    isDeal: true,
+    shortDescription: "Up to 140MB/s transfer speeds with A1 rating for faster app performance in smartphones and cameras.",
+    description: "Up to 140MB/s transfer speeds to move up to 1000 photos in a minute.",
+    highlights: [
+      "Up to 140MB/s transfer read speeds",
+      "A1-rated performance for faster mobile apps",
+      "Includes SD adapter"
+    ],
+    specs: [
+      { key: "Capacity", value: "64GB" },
+      { key: "Read Speed", value: "Up to 140 MB/s" }
+    ],
+    warranty: "10 Years SanDisk Limited Warranty",
+    freeDelivery: true,
+    tags: ["sandisk", "microsd", "memorycard", "storage", "camera", "phone"]
+  },
+  {
+    _id: "660000000000000000000025",
+    title: "Portronics Clean M 8-in-1 Multi-Device Electronics & Keyboard Cleaning Kit",
+    slug: "portronics-clean-m-8-in-1-cleaning-kit",
+    brand: "Portronics",
+    category: "Accessories & Power",
+    subCategory: "Accessories",
+    price: 349,
+    originalPrice: 799,
+    discountPercent: 56,
+    rating: 4.7,
+    numReviews: 680,
+    thumbnail: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80"
+    ],
+    isFeatured: false,
+    isDeal: true,
+    shortDescription: "All-in-one cleaning tool for AirPods, keyboard keys, phone screens, lenses, and charging ports.",
+    description: "Compact 8-in-1 cleaning kit equipped with a high-density brush, silicone cleaning tip, and flocking sponge.",
+    highlights: [
+      "8 essential tools in 1 compact portable design",
+      "Keycap puller and high-density keyboard brush",
+      "Screen cleaner spray with microfiber swipe surface"
+    ],
+    specs: [
+      { key: "Tools Included", value: "8 Cleaning Tools + Spray Bottle" },
+      { key: "Weight", value: "60g" }
+    ],
+    warranty: "6 Months Brand Warranty",
+    freeDelivery: true,
+    tags: ["cleaning", "accessories", "gadget", "portronics", "keyboard", "airpods"]
+  },
+  {
+    _id: "660000000000000000000026",
+    title: "Syska 10000mAh Ultra-Compact Fast Charging Power Bank with Dual USB Output",
+    slug: "syska-10000mah-compact-power-bank",
+    brand: "Syska",
+    category: "Accessories & Power",
+    subCategory: "Accessories",
+    price: 899,
+    originalPrice: 1599,
+    discountPercent: 44,
+    rating: 4.6,
+    numReviews: 950,
+    thumbnail: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "Pocket-sized 10,000mAh high-density power bank with multi-layer circuit protection and dual outputs.",
+    description: "Syska Power Pocket packs 10,000mAh in a pocket-friendly form factor with dual USB-A output ports.",
+    highlights: [
+      "10,000 mAh high-density Lithium Polymer battery",
+      "Dual USB-A output to charge 2 devices simultaneously",
+      "12-layer advanced smart IC circuit protection"
+    ],
+    specs: [
+      { key: "Capacity", value: "10,000 mAh (37Wh)" },
+      { key: "Output Ports", value: "2x USB-A (5V / 2.4A Max)" }
+    ],
+    warranty: "1 Year Syska Warranty",
+    freeDelivery: true,
+    tags: ["syska", "powerbank", "battery", "portable", "budget", "usb"]
+  },
+
+  // Main Products
+  {
+    _id: "660000000000000000000001",
+    title: "Apple iPad 10th Gen (10.9\" Liquid Retina, A14 Bionic, 64GB Wi-Fi) - Blue",
+    slug: "apple-ipad-10th-gen-64gb",
+    brand: "Apple",
+    category: "Laptops & Computers",
+    subCategory: "Tablets",
+    price: 29900,
+    originalPrice: 34900,
+    discountPercent: 14,
+    rating: 4.8,
+    numReviews: 428,
+    thumbnail: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "All-screen design with 10.9-inch Liquid Retina display, A14 Bionic chip, and Apple Pencil support.",
+    description: "The colorful iPad is more capable, intuitive, and fun.",
+    highlights: [
+      "Striking 10.9-inch Liquid Retina display",
+      "A14 Bionic chip with 6-core CPU"
+    ],
+    specs: [
+      { key: "Processor", value: "A14 Bionic chip" }
+    ],
+    warranty: "1 Year Apple Limited Warranty",
+    freeDelivery: true,
+    tags: ["ipad", "apple", "tablet", "a14", "retina"]
   },
   {
     _id: "660000000000000000000002",
@@ -106,326 +288,338 @@ export const MOCK_PRODUCTS: Product[] = [
     brand: "Sony",
     category: "Audio & Headphones",
     subCategory: "Over-Ear Headphones",
-    price: 26990,
-    originalPrice: 34990,
-    discountPercent: 23,
+    price: 24990,
+    originalPrice: 29990,
+    discountPercent: 17,
     rating: 4.8,
     numReviews: 1240,
     thumbnail: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80",
     images: [
-      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80",
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
-      "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&q=80"
+      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80"
     ],
-    badge: "Best Seller",
     isFeatured: true,
     isDeal: true,
     shortDescription: "Industry-leading noise canceling with 2 processors, 8 microphones, and Auto NC Optimizer.",
-    description: "The WH-1000XM5 headphones rewrite the rules for distraction-free listening. Two processors control 8 microphones for unprecedented noise cancellation and exceptional call quality.",
+    description: "The WH-1000XM5 headphones rewrite the rules for distraction-free listening.",
     highlights: [
-      "Magnificent Sound, engineered to perfection with Integrated Processor V1",
-      "Crystal clear hands-free calling with 4 beamforming microphones",
-      "Up to 30-hour battery life with quick charging",
-      "Ultra-comfortable lightweight design with soft fit leather"
+      "Magnificent Sound with Integrated Processor V1",
+      "Up to 30-hour battery life"
     ],
     specs: [
-      { key: "Type", value: "Closed dynamic, circumaural" },
-      { key: "Battery Life", value: "30 hours (NC ON), 40 hours (NC OFF)" },
-      { key: "Bluetooth Version", value: "5.2 with LDAC, AAC, SBC" },
-      { key: "Noise Cancellation", value: "Dual Processor V1 + QN1 Active NC" }
+      { key: "Battery Life", value: "30 hours" }
     ],
     warranty: "1 Year Brand Warranty",
     freeDelivery: true,
-    tags: ["sony", "audio", "headphones", "anc", "wireless", "music", "bluetooth"]
+    tags: ["sony", "audio", "headphones", "anc"]
   },
   {
     _id: "660000000000000000000003",
-    title: "Samsung Galaxy S24 Ultra 5G (Titanium Gray, 12GB RAM, 512GB Storage)",
-    slug: "samsung-galaxy-s24-ultra-5g",
-    brand: "Samsung",
+    title: "Nothing Phone (2a) Plus 5G (12GB RAM, 256GB Storage) - Metallic Grey",
+    slug: "nothing-phone-2a-plus-5g",
+    brand: "Nothing",
     category: "Smartphones",
     subCategory: "Flagship Phones",
-    price: 139999,
-    originalPrice: 154999,
-    discountPercent: 10,
-    rating: 4.8,
-    numReviews: 890,
-    thumbnail: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80",
+    price: 23999,
+    originalPrice: 27999,
+    discountPercent: 14,
+    rating: 4.7,
+    numReviews: 610,
+    thumbnail: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800&q=80",
     images: [
-      "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80",
-      "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&q=80"
+      "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800&q=80"
     ],
-    badge: "Galaxy AI",
     isFeatured: true,
-    isDeal: false,
-    shortDescription: "Meet Galaxy S24 Ultra with Galaxy AI, Titanium exterior, 200MP camera, and built-in S Pen.",
-    description: "Welcome to the era of mobile AI. Featuring durable titanium frame, Corning Gorilla Armor glass, 200MP camera with ProVisual Engine, and Snapdragon 8 Gen 3 for Galaxy.",
+    isDeal: true,
+    shortDescription: "Custom MediaTek Dimensity 7350 Pro 5G, iconic Glyph Interface, and 50MP dual cameras.",
+    description: "Extra power, extra pixels, extra unique.",
     highlights: [
-      "Galaxy AI: Circle to Search, Live Translate, Note Assist",
-      "200MP Quad Telephoto Camera system with 100x Space Zoom",
-      "6.8\" QHD+ Dynamic AMOLED 2X flat display with 2600 nits brightness"
+      "Custom Dimensity 7350 Pro 5G",
+      "50MP Main + 50MP Front"
     ],
     specs: [
-      { key: "Processor", value: "Snapdragon 8 Gen 3 for Galaxy" },
-      { key: "RAM & ROM", value: "12GB LPDDR5X + 512GB UFS 4.0" },
-      { key: "Camera", value: "200MP + 50MP + 10MP + 12MP" }
+      { key: "Processor", value: "MediaTek Dimensity 7350 Pro" }
     ],
     warranty: "1 Year Brand Warranty",
     freeDelivery: true,
-    tags: ["samsung", "smartphone", "5g", "galaxy", "flagship", "ai"]
+    tags: ["nothing", "smartphone", "5g", "glyph"]
   },
   {
     _id: "660000000000000000000004",
-    title: "ASUS ROG Zephyrus G16 (2024) OLED Gaming Laptop - Eclipse Gray",
-    slug: "asus-rog-zephyrus-g16-oled",
-    brand: "ASUS ROG",
+    title: "ASUS TUF Gaming 27\" QHD 180Hz Fast-IPS HDR Gaming Monitor (VG27AQML1A)",
+    slug: "asus-tuf-gaming-27-qhd-180hz-monitor",
+    brand: "ASUS",
     category: "Laptops & Computers",
-    subCategory: "Gaming Laptops",
-    price: 189990,
-    originalPrice: 224990,
-    discountPercent: 16,
-    rating: 4.7,
-    numReviews: 156,
-    thumbnail: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&q=80",
+    subCategory: "Gaming Gear",
+    price: 18499,
+    originalPrice: 22999,
+    discountPercent: 20,
+    rating: 4.8,
+    numReviews: 290,
+    thumbnail: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
     images: [
-      "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&q=80",
-      "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=800&q=80"
+      "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80"
     ],
-    badge: "Gamer's Pick",
     isFeatured: true,
     isDeal: true,
-    shortDescription: "Ultra-slim 1.85kg gaming powerhouse with 2.5K 240Hz ROG Nebula OLED and RTX 4070.",
-    description: "Power, precision, and elegance define the 2024 Zephyrus G16. Featuring an all-aluminum CNC-machined chassis with Slash Lighting and OLED display.",
+    shortDescription: "27-inch 2560x1440 Fast IPS panel with overclocked 180Hz refresh rate and 1ms GTG response.",
+    description: "Designed for professional gamers and immersive gameplay.",
     highlights: [
-      "Intel Core Ultra 9 185H processor with AI Boost NPU",
-      "NVIDIA GeForce RTX 4070 Laptop GPU 8GB GDDR6",
-      "16-inch 2.5K (2560 x 1600) 240Hz ROG Nebula OLED"
+      "27-inch QHD (2560 x 1440) Fast IPS",
+      "180Hz refresh rate"
     ],
     specs: [
-      { key: "CPU", value: "Intel Core Ultra 9 185H" },
-      { key: "GPU", value: "NVIDIA RTX 4070 8GB" },
-      { key: "RAM", value: "32GB LPDDR5X" }
+      { key: "Screen Size", value: "27.0 inch QHD" }
     ],
-    warranty: "1 Year Global Warranty",
+    warranty: "3 Years ASUS Onsite Warranty",
     freeDelivery: true,
-    tags: ["asus", "rog", "gaming", "laptop", "rtx4070"]
+    tags: ["asus", "monitor", "gaming", "180hz"]
   },
   {
     _id: "660000000000000000000005",
-    title: "Apple Watch Ultra 2 (GPS + Cellular, 49mm) Titanium with Ocean Band",
-    slug: "apple-watch-ultra-2-titanium",
-    brand: "Apple",
-    category: "Smartwatches & Wearables",
-    subCategory: "Smartwatches",
-    price: 89900,
-    originalPrice: 89900,
-    discountPercent: 0,
+    title: "Sony PlayStation 5 DualSense Edge Wireless Controller",
+    slug: "sony-ps5-dualsense-edge-controller",
+    brand: "Sony",
+    category: "Gaming & VR",
+    subCategory: "Gaming Controllers",
+    price: 14990,
+    originalPrice: 18990,
+    discountPercent: 21,
     rating: 4.9,
-    numReviews: 412,
+    numReviews: 380,
+    thumbnail: "https://images.unsplash.com/photo-1606318801954-d46d46d3360a?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1606318801954-d46d46d3360a?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: false,
+    shortDescription: "Ultra-customizable pro controller with swappable stick modules, mappable back buttons, and braided cable.",
+    description: "Get an edge in gameplay with custom controls.",
+    highlights: [
+      "Changeable stick caps",
+      "Mappable back buttons"
+    ],
+    specs: [
+      { key: "Compatibility", value: "PS5, PC, Mac, iOS, Android" }
+    ],
+    warranty: "1 Year Sony India Warranty",
+    freeDelivery: true,
+    tags: ["ps5", "playstation", "controller", "gaming"]
+  },
+  {
+    _id: "660000000000000000000006",
+    title: "Keychron Q1 Pro Wireless Custom Mechanical Keyboard (QMK/VIA, CNC Aluminum)",
+    slug: "keychron-q1-pro-wireless-mechanical-keyboard",
+    brand: "Keychron",
+    category: "Laptops & Computers",
+    subCategory: "Keyboards & Mice",
+    price: 12499,
+    originalPrice: 15999,
+    discountPercent: 22,
+    rating: 4.9,
+    numReviews: 450,
+    thumbnail: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "75% full metal wireless custom mechanical keyboard with hot-swappable Keychron K Pro switches.",
+    description: "Keychron Q1 Pro full metal wireless custom mechanical keyboard.",
+    highlights: [
+      "Full CNC 6063 aluminum body",
+      "Wireless Bluetooth 5.1 & Type-C"
+    ],
+    specs: [
+      { key: "Layout", value: "75% Exploded Layout" }
+    ],
+    warranty: "1 Year Manufacturer Warranty",
+    freeDelivery: true,
+    tags: ["keyboard", "mechanical", "keychron"]
+  },
+  {
+    _id: "660000000000000000000007",
+    title: "Marshall Emberton II Portable Bluetooth Speaker - Black & Brass",
+    slug: "marshall-emberton-ii-portable-speaker",
+    brand: "Marshall",
+    category: "Audio & Headphones",
+    subCategory: "Portable Audio",
+    price: 11999,
+    originalPrice: 14999,
+    discountPercent: 20,
+    rating: 4.8,
+    numReviews: 512,
+    thumbnail: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "Compact portable speaker with 30+ hours of playtime and 360° True Stereophonic sound.",
+    description: "Emberton II compact portable speaker with loud and vibrant Marshall sound.",
+    highlights: [
+      "Signature Marshall sound",
+      "30+ hours playtime"
+    ],
+    specs: [
+      { key: "Water Resistance", value: "IP67" }
+    ],
+    warranty: "1 Year Official Brand Warranty",
+    freeDelivery: true,
+    tags: ["marshall", "speaker", "bluetooth"]
+  },
+  {
+    _id: "660000000000000000000008",
+    title: "Samsung Galaxy Watch 6 Bluetooth 40mm (Super AMOLED, Sapphire Crystal)",
+    slug: "samsung-galaxy-watch-6-40mm",
+    brand: "Samsung",
+    category: "Smartphones",
+    subCategory: "Smart Watches",
+    price: 16999,
+    originalPrice: 21999,
+    discountPercent: 23,
+    rating: 4.7,
+    numReviews: 340,
     thumbnail: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80"
     ],
-    badge: "Top Rated",
     isFeatured: true,
-    isDeal: false,
-    shortDescription: "Rugged and capable, crafted from aerospace-grade titanium with up to 3000 nits display.",
-    description: "The ultimate sports and adventure watch features a lightweight titanium case and the powerful S9 SiP.",
+    isDeal: true,
+    shortDescription: "Advanced health monitoring, Sleep Coaching, BioActive sensor, and 20% larger display.",
+    description: "Everyday wellness with Galaxy Watch 6.",
     highlights: [
-      "49mm aerospace-grade titanium case",
-      "Brightest Always-On Retina display at 3000 nits",
-      "Precision dual-frequency GPS"
+      "1.3\" Super AMOLED",
+      "BioActive Sensor (HR + ECG + BIA)"
     ],
     specs: [
-      { key: "Case Size", value: "49mm Titanium" },
-      { key: "Chipset", value: "Apple S9 SiP" }
+      { key: "Display", value: "1.3\" Super AMOLED" }
     ],
-    warranty: "1 Year Apple Warranty",
+    warranty: "1 Year Samsung India Warranty",
     freeDelivery: true,
-    tags: ["apple", "watch", "smartwatch", "fitness"]
-  },
-  {
-    _id: "660000000000000000000006",
-    title: "Sony PlayStation 5 Slim Console (Disc Edition) with 1TB SSD",
-    slug: "sony-playstation-5-slim-disc-edition",
-    brand: "Sony",
-    category: "Gaming & VR",
-    subCategory: "Consoles",
-    price: 49990,
-    originalPrice: 54990,
-    discountPercent: 9,
-    rating: 4.9,
-    numReviews: 2450,
-    thumbnail: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800&q=80",
-    images: [
-      "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800&q=80"
-    ],
-    badge: "Trending",
-    isFeatured: true,
-    isDeal: true,
-    shortDescription: "Experience lightning fast loading with ultra-high speed SSD and haptic feedback.",
-    description: "The PS5 Slim console unleashes new gaming possibilities with 1TB SSD, 3D Audio, and 4K 120Hz gaming.",
-    highlights: [
-      "Slim Design with 1TB Built-in NVMe SSD",
-      "Ray Tracing support up to 120fps 4K",
-      "DualSense Wireless Controller included"
-    ],
-    specs: [
-      { key: "Storage", value: "1TB Custom NVMe SSD" },
-      { key: "Output", value: "HDMI 2.1 4K 120Hz" }
-    ],
-    warranty: "1 Year Sony Warranty",
-    freeDelivery: true,
-    tags: ["ps5", "playstation", "gaming", "console"]
-  },
-  {
-    _id: "660000000000000000000007",
-    title: "Sony Alpha 7 IV Full-Frame Mirrorless Camera (Body Only)",
-    slug: "sony-alpha-7-iv-full-frame-camera",
-    brand: "Sony",
-    category: "Cameras & Drones",
-    subCategory: "Mirrorless Cameras",
-    price: 214990,
-    originalPrice: 242990,
-    discountPercent: 12,
-    rating: 4.9,
-    numReviews: 184,
-    thumbnail: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
-    images: ["https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80"],
-    badge: "Pro Choice",
-    isFeatured: false,
-    isDeal: true,
-    shortDescription: "33MP Full-Frame Exmor R CMOS Sensor with 4K 60p 10-bit 4:2:2 video.",
-    description: "An all-arounder that pushes beyond basic with 33MP Exmor R CMOS sensor and BIONZ XR processor.",
-    highlights: ["33MP Full-Frame Sensor", "4K 60p 10-bit 4:2:2 recording", "759-point AF"],
-    specs: [{ key: "Sensor", value: "33MP Full-Frame" }],
-    warranty: "2 Years Warranty",
-    freeDelivery: true,
-    tags: ["sony", "camera", "4k"]
-  },
-  {
-    _id: "660000000000000000000008",
-    title: "DJI Mini 4 Pro Drone with DJI RC 2 Controller",
-    slug: "dji-mini-4-pro-fly-more-combo",
-    brand: "DJI",
-    category: "Cameras & Drones",
-    subCategory: "Drones",
-    price: 119990,
-    originalPrice: 134990,
-    discountPercent: 11,
-    rating: 4.8,
-    numReviews: 210,
-    thumbnail: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&q=80",
-    images: ["https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&q=80"],
-    badge: "Hot Deal",
-    isFeatured: true,
-    isDeal: true,
-    shortDescription: "Under 249g, Omnidirectional Obstacle Sensing, 4K/60fps HDR True Vertical Shooting.",
-    description: "Mini 4 Pro is DJI's most advanced mini-camera drone with omnidirectional obstacle sensing.",
-    highlights: ["Ultralight < 249g", "4K/60fps HDR", "20km transmission"],
-    specs: [{ key: "Weight", value: "< 249g" }],
-    warranty: "1 Year Warranty",
-    freeDelivery: true,
-    tags: ["dji", "drone", "4k"]
+    tags: ["samsung", "smartwatch", "fitness"]
   },
   {
     _id: "660000000000000000000009",
-    title: "Anker Prime 27,650mAh Power Bank (250W Fast Charger)",
-    slug: "anker-prime-27650mah-power-bank-250w",
+    title: "Logitech MX Master 3S Wireless Performance Mouse - Graphite",
+    slug: "logitech-mx-master-3s-wireless-mouse",
+    brand: "Logitech",
+    category: "Laptops & Computers",
+    subCategory: "Keyboards & Mice",
+    price: 7995,
+    originalPrice: 9995,
+    discountPercent: 20,
+    rating: 4.9,
+    numReviews: 1890,
+    thumbnail: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: false,
+    shortDescription: "8K DPI any-surface tracking, Quiet Clicks, and MagSpeed electromagnetic scrolling.",
+    description: "MX Master 3S precision mouse.",
+    highlights: [
+      "8,000 DPI sensor",
+      "Quiet Click buttons"
+    ],
+    specs: [
+      { key: "DPI", value: "8000 DPI" }
+    ],
+    warranty: "1 Year Limited Hardware Warranty",
+    freeDelivery: true,
+    tags: ["logitech", "mouse", "mxmaster"]
+  },
+  {
+    _id: "660000000000000000000010",
+    title: "Anker 737 Power Bank (PowerCore 24K, 140W Fast Charging, Smart Digital Display)",
+    slug: "anker-737-power-bank-140w-24k",
     brand: "Anker",
     category: "Accessories & Power",
-    subCategory: "Power Banks",
-    price: 16999,
-    originalPrice: 21999,
-    discountPercent: 23,
-    rating: 4.8,
-    numReviews: 540,
+    subCategory: "Accessories",
+    price: 8999,
+    originalPrice: 11999,
+    discountPercent: 25,
+    rating: 4.9,
+    numReviews: 760,
     thumbnail: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80",
-    images: ["https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80"],
-    badge: "High Power",
-    isFeatured: false,
+    images: [
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80"
+    ],
+    isFeatured: true,
     isDeal: true,
-    shortDescription: "Massive 250W total output capable of fast charging two laptops and a phone.",
-    description: "Powered by GaN technology, Anker Prime packs 250W across 3 ports with a smart digital display.",
-    highlights: ["250W total output", "27,650mAh capacity", "Smart color LCD screen"],
-    specs: [{ key: "Capacity", value: "27,650 mAh" }, { key: "Output", value: "250W Max" }],
-    warranty: "24 Months Warranty",
+    shortDescription: "Ultra-powerful 140W two-way fast charging with 24,000mAh capacity and smart color digital display.",
+    description: "140W ultra-powerful charge for MacBook, laptops, phones, and tablets.",
+    highlights: [
+      "140W two-way fast charging",
+      "24,000mAh capacity"
+    ],
+    specs: [
+      { key: "Capacity", value: "24,000 mAh" }
+    ],
+    warranty: "2 Years Anker Brand Warranty",
     freeDelivery: true,
     tags: ["anker", "powerbank", "fastcharging"]
   },
   {
-    _id: "660000000000000000000010",
-    title: "Logitech MX Master 3S Wireless Performance Mouse",
-    slug: "logitech-mx-master-3s-mouse",
-    brand: "Logitech",
-    category: "Accessories & Power",
-    subCategory: "Mice & Keyboards",
-    price: 9495,
-    originalPrice: 10995,
-    discountPercent: 14,
-    rating: 4.9,
-    numReviews: 3100,
-    thumbnail: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80",
-    images: ["https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80"],
-    badge: "Productivity King",
-    isFeatured: false,
-    isDeal: false,
-    shortDescription: "8,000 DPI track-on-glass sensor, Quiet Clicks, and MagSpeed wheel.",
-    description: "Feel every moment of your workflow with 8,000 DPI tracking and Quiet Clicks.",
-    highlights: ["MagSpeed Electromagnetic scrolling", "8,000 DPI track-on-glass", "Quiet Clicks"],
-    specs: [{ key: "DPI", value: "8000 DPI" }, { key: "Battery", value: "70 days" }],
-    warranty: "1 Year Warranty",
-    freeDelivery: true,
-    tags: ["logitech", "mouse", "productivity"]
-  },
-  {
     _id: "660000000000000000000011",
-    title: "Keychron Q1 Max Wireless QMK/VIA Custom Mechanical Keyboard",
-    slug: "keychron-q1-max-mechanical-keyboard",
-    brand: "Keychron",
-    category: "Accessories & Power",
-    subCategory: "Mice & Keyboards",
-    price: 19999,
-    originalPrice: 22999,
-    discountPercent: 13,
+    title: "Sony WF-1000XM5 True Wireless Noise Canceling Earbuds",
+    slug: "sony-wf-1000xm5-true-wireless-earbuds",
+    brand: "Sony",
+    category: "Audio & Headphones",
+    subCategory: "Earbuds",
+    price: 17990,
+    originalPrice: 21990,
+    discountPercent: 18,
     rating: 4.8,
-    numReviews: 430,
-    thumbnail: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80",
-    images: ["https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80"],
-    badge: "Enthusiast Choice",
-    isFeatured: false,
-    isDeal: false,
-    shortDescription: "75% layout full metal CNC body with 2.4G wireless and acoustic foams.",
-    description: "Keychron Q1 Max full metal QMK/VIA wireless mechanical keyboard with double-gasket design.",
-    highlights: ["CNC Aluminum body", "Double Gasket mount", "QMK/VIA remappable"],
-    specs: [{ key: "Layout", value: "75%" }, { key: "Connectivity", value: "2.4G + BT + Type-C" }],
-    warranty: "1 Year Warranty",
+    numReviews: 690,
+    thumbnail: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&q=80"
+    ],
+    isFeatured: true,
+    isDeal: true,
+    shortDescription: "Industry-leading noise cancellation with Dynamic Driver X and AI noise reduction.",
+    description: "WF-1000XM5 noise-canceling earbuds.",
+    highlights: [
+      "Dynamic Driver X",
+      "Up to 24 hours battery life"
+    ],
+    specs: [
+      { key: "Driver Unit", value: "8.4 mm" }
+    ],
+    warranty: "1 Year Official Brand Warranty",
     freeDelivery: true,
-    tags: ["keyboard", "keychron", "mechanical"]
+    tags: ["sony", "earbuds", "tws", "anc"]
   },
   {
     _id: "660000000000000000000012",
-    title: "LG UltraGear 34\" Curved WQHD OLED 240Hz Gaming Monitor",
-    slug: "lg-ultragear-34-curved-wqhd-oled-monitor",
-    brand: "LG",
-    category: "Laptops & Computers",
-    subCategory: "Monitors",
-    price: 89999,
-    originalPrice: 119999,
-    discountPercent: 25,
-    rating: 4.8,
-    numReviews: 298,
-    thumbnail: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
-    images: ["https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80"],
-    badge: "Super Deal",
+    title: "HyperX Cloud Alpha Wireless Gaming Headset (300-Hour Battery Life)",
+    slug: "hyperx-cloud-alpha-wireless-headset",
+    brand: "HyperX",
+    category: "Gaming & VR",
+    subCategory: "Gaming Audio",
+    price: 13499,
+    originalPrice: 16999,
+    discountPercent: 21,
+    rating: 4.9,
+    numReviews: 410,
+    thumbnail: "https://images.unsplash.com/photo-1599669454699-248893623440?w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1599669454699-248893623440?w=800&q=80"
+    ],
     isFeatured: true,
-    isDeal: true,
-    shortDescription: "800R curved OLED display with 0.03ms response time and 240Hz refresh rate.",
-    description: "Get immersed in every world with the LG UltraGear 34-inch curved OLED monitor with 240Hz fluid gameplay.",
-    highlights: ["34-inch WQHD 21:9 OLED", "240Hz & 0.03ms (GtG)", "800R Curvature"],
-    specs: [{ key: "Panel", value: "OLED" }, { key: "Refresh", value: "240Hz" }],
-    warranty: "3 Years Warranty",
+    isDeal: false,
+    shortDescription: "Massive 300 hours of battery life, Dual Chamber 50mm drivers, and DTS Headphone:X Spatial Audio.",
+    description: "Play for over a week with 300 hours of battery life.",
+    highlights: [
+      "300 hours battery life",
+      "DTS Spatial Audio"
+    ],
+    specs: [
+      { key: "Battery Life", value: "Up to 300 Hours" }
+    ],
+    warranty: "2 Years HyperX Manufacturer Warranty",
     freeDelivery: true,
-    tags: ["monitor", "oled", "lg", "gaming"]
+    tags: ["hyperx", "headset", "gaming", "wireless"]
   }
 ];
