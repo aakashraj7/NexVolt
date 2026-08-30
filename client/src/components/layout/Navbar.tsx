@@ -333,7 +333,7 @@ export const Navbar: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isMerchant ? "Search catalog & inventory..." : "Search electronics..."}
+                placeholder={isMerchant ? "Search store catalog..." : "Search electronics..."}
                 className="w-full bg-slate-100 border border-slate-200 rounded-full py-2 pl-9 pr-20 text-sm text-slate-900 outline-none"
               />
               <button

@@ -15,6 +15,10 @@ const reviewSchema = new mongoose.Schema({
 });
 
 const productSchema = new mongoose.Schema({
+  merchantId: { type: String, default: 'seed_merchant_nexvolt', index: true },
+  merchantEmail: { type: String, default: '' },
+  merchantName: { type: String, default: 'NexVolt Official Partner' },
+  merchantStoreName: { type: String, default: '' },
   title: { type: String, required: true, trim: true },
   slug: { type: String, required: true, unique: true, index: true },
   brand: { type: String, required: true, index: true },
@@ -25,8 +29,6 @@ const productSchema = new mongoose.Schema({
   discountPercent: { type: Number, default: 0 },
   rating: { type: Number, default: 4.5, min: 0, max: 5, index: true },
   numReviews: { type: Number, default: 0 },
-  inStock: { type: Boolean, default: true, index: true },
-  stockCount: { type: Number, default: 25 },
   thumbnail: { type: String, required: true },
   images: [{ type: String }],
   badge: { type: String, default: '' }, // e.g. "Best Seller", "Deal of the Day", "New Release"

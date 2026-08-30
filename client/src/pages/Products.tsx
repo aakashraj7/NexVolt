@@ -21,7 +21,6 @@ export const ProductsPage: React.FC = () => {
   const [selectedBrand, setSelectedBrand] = useState(searchParams.get('brand') || '');
   const [selectedRating, setSelectedRating] = useState(Number(searchParams.get('rating')) || 0);
   const [maxPrice, setMaxPrice] = useState(400000);
-  const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -47,7 +46,6 @@ export const ProductsPage: React.FC = () => {
           brand: selectedBrand || undefined,
           maxPrice: maxPrice < 400000 ? maxPrice : undefined,
           rating: selectedRating > 0 ? selectedRating : undefined,
-          inStock: inStockOnly ? true : undefined,
           sort: sortBy
         });
 
@@ -63,14 +61,13 @@ export const ProductsPage: React.FC = () => {
     };
 
     fetchCatalog();
-  }, [searchQuery, selectedCategory, selectedBrand, selectedRating, maxPrice, inStockOnly, sortBy]);
+  }, [searchQuery, selectedCategory, selectedBrand, selectedRating, maxPrice, sortBy]);
 
   const handleResetFilters = () => {
     setSelectedCategory('');
     setSelectedBrand('');
     setSelectedRating(0);
     setMaxPrice(400000);
-    setInStockOnly(false);
     setSearchQuery('');
     setSearchParams({});
   };
@@ -132,7 +129,6 @@ export const ProductsPage: React.FC = () => {
             selectedBrand={selectedBrand}
             selectedRating={selectedRating}
             maxPrice={maxPrice}
-            inStockOnly={inStockOnly}
             onSelectCategory={(cat) => {
               setSelectedCategory(cat);
               if (cat) setSearchParams({ category: cat });
@@ -141,7 +137,6 @@ export const ProductsPage: React.FC = () => {
             onSelectBrand={setSelectedBrand}
             onSelectRating={setSelectedRating}
             onChangeMaxPrice={setMaxPrice}
-            onToggleInStock={setInStockOnly}
             onResetFilters={handleResetFilters}
           />
         </div>
@@ -166,7 +161,6 @@ export const ProductsPage: React.FC = () => {
                 selectedBrand={selectedBrand}
                 selectedRating={selectedRating}
                 maxPrice={maxPrice}
-                inStockOnly={inStockOnly}
                 onSelectCategory={(cat) => {
                   setSelectedCategory(cat);
                   setShowMobileFilters(false);
@@ -180,7 +174,6 @@ export const ProductsPage: React.FC = () => {
                   setShowMobileFilters(false);
                 }}
                 onChangeMaxPrice={setMaxPrice}
-                onToggleInStock={setInStockOnly}
                 onResetFilters={handleResetFilters}
               />
             </div>

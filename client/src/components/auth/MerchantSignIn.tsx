@@ -113,7 +113,7 @@ export const MerchantSignIn: React.FC<MerchantSignInProps> = ({ onSwitchMode }) 
             Seller <span className="text-[#0066FF]">Sign In</span>
           </h2>
           <p className="text-slate-500 text-xs mt-1.5 font-medium leading-relaxed max-w-xs mx-auto">
-            Manage your electronics inventory, track customer orders, and access AI Revenue Recovery.
+            Publish electronics products, track customer orders, and access AI Revenue Recovery.
           </p>
         </div>
 

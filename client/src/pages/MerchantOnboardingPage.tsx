@@ -85,9 +85,16 @@ export const MerchantOnboardingPage: React.FC = () => {
     const loadMerchantData = async () => {
       try {
         setLoading(true);
+        const isGoogle = user.externalAccounts && user.externalAccounts.some((acc: any) =>
+          acc.provider === 'google' || acc.provider === 'oauth_google' || acc.verification?.strategy === 'oauth_google'
+        );
+        const authProvider = isGoogle ? 'google' : 'email_password';
+
         const data = await api.getMerchantProfile(user.id, {
           email: user.primaryEmailAddress?.emailAddress || '',
-          fullName: user.fullName || ''
+          fullName: user.fullName || '',
+          provider: authProvider,
+          authProvider
         });
 
         if (data?.merchantProfile) {
@@ -276,16 +283,24 @@ export const MerchantOnboardingPage: React.FC = () => {
         isDefault: idx === 0
       }));
 
+      const isGoogle = user.externalAccounts && user.externalAccounts.some((acc: any) =>
+        acc.provider === 'google' || acc.provider === 'oauth_google' || acc.verification?.strategy === 'oauth_google'
+      );
+      const authProvider = isGoogle ? 'google' : 'email_password';
+
       const payload = {
         storeName: storeName.trim(),
+        ownerName: user.fullName || storeName.trim(),
         businessType,
         category,
         gstin: gstin.trim().toUpperCase(),
         businessPhone: businessPhone.replace(/\D/g, '').slice(-10),
         supportEmail: supportEmail.trim(),
+        email: user.primaryEmailAddress?.emailAddress || supportEmail.trim(),
         website: website.trim(),
         warehouses: formattedWarehouses,
-        onboardingCompleted: true
+        onboardingCompleted: true,
+        authProvider
       };
 
       await api.updateMerchantProfile(user.id, payload);
@@ -360,7 +375,7 @@ export const MerchantOnboardingPage: React.FC = () => {
               Storefront Ready!
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 font-medium">
-              Your merchant workspace has been configured. You can now list inventory, manage warehouse stock, and fulfill customer orders.
+              Your merchant workspace has been configured. You can now list products, receive order notifications, and fulfill customer orders.
             </p>
           </div>
 

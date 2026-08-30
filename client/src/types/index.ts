@@ -15,6 +15,10 @@ export interface Review {
 
 export interface Product {
   _id: string;
+  merchantId?: string;
+  merchantEmail?: string;
+  merchantName?: string;
+  merchantStoreName?: string;
   title: string;
   slug: string;
   brand: string;
@@ -25,8 +29,6 @@ export interface Product {
   discountPercent: number;
   rating: number;
   numReviews: number;
-  inStock: boolean;
-  stockCount: number;
   thumbnail: string;
   images: string[];
   badge?: string;

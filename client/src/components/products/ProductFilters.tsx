@@ -8,12 +8,10 @@ interface ProductFiltersProps {
   selectedBrand: string;
   selectedRating: number;
   maxPrice: number;
-  inStockOnly: boolean;
   onSelectCategory: (cat: string) => void;
   onSelectBrand: (brand: string) => void;
   onSelectRating: (rating: number) => void;
   onChangeMaxPrice: (price: number) => void;
-  onToggleInStock: (val: boolean) => void;
   onResetFilters: () => void;
 }
 
@@ -24,12 +22,10 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   selectedBrand,
   selectedRating,
   maxPrice,
-  inStockOnly,
   onSelectCategory,
   onSelectBrand,
   onSelectRating,
   onChangeMaxPrice,
-  onToggleInStock,
   onResetFilters,
 }) => {
   return (
@@ -163,19 +159,6 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* In Stock toggle */}
-      <div className="pt-2 border-t border-slate-200">
-        <label className="flex items-center justify-between cursor-pointer">
-          <span className="text-xs text-slate-700 font-semibold">In Stock Only</span>
-          <input
-            type="checkbox"
-            checked={inStockOnly}
-            onChange={(e) => onToggleInStock(e.target.checked)}
-            className="w-4 h-4 rounded accent-cyan-600 bg-white border-slate-300 cursor-pointer"
-          />
-        </label>
       </div>
     </div>
   );

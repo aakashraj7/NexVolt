@@ -162,7 +162,7 @@ export const CustomUserMenu: React.FC = () => {
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition"
                 >
                   <PackagePlus className="w-4 h-4 text-emerald-600" />
-                  <span>Inventory & Catalog</span>
+                  <span>Store Catalog</span>
                 </Link>
 
                 <Link

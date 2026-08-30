@@ -47,12 +47,13 @@ export const MerchantDashboard: React.FC = () => {
   const [selectedEditingProduct, setSelectedEditingProduct] = useState<Product | null>(null);
 
   const loadData = async () => {
+    if (!user) return;
     try {
       setLoading(true);
       const [statsData, productsData, ordersData] = await Promise.all([
-        api.getMerchantStats(),
-        api.getProducts({ limit: 50 }),
-        api.getMerchantOrders()
+        api.getMerchantStats(user.id),
+        api.getMerchantProducts(user.id, { limit: 50 }),
+        api.getMerchantOrders({ merchantId: user.id })
       ]);
 
       if (statsData) setStats(statsData);
@@ -73,7 +74,12 @@ export const MerchantDashboard: React.FC = () => {
     if (isLoaded && isSignedIn && user) {
       const checkMerchantOnboarding = async () => {
         try {
-          const roleData = await api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress);
+          const isGoogle = user.externalAccounts && user.externalAccounts.some((acc: any) =>
+            acc.provider === 'google' || acc.provider === 'oauth_google' || acc.verification?.strategy === 'oauth_google'
+          );
+          const authProvider = isGoogle ? 'google' : 'email_password';
+
+          const roleData = await api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress, authProvider);
           if (!roleData || (!roleData.isMerchant && roleData.role !== 'merchant')) {
             showToast('This action is not possible. Customer accounts cannot access the Merchant Portal.', 'error');
             navigate('/', { replace: true });
@@ -82,7 +88,9 @@ export const MerchantDashboard: React.FC = () => {
 
           const profileData = await api.getMerchantProfile(user.id, {
             email: user.primaryEmailAddress?.emailAddress || '',
-            fullName: user.fullName || ''
+            fullName: user.fullName || '',
+            provider: authProvider,
+            authProvider
           });
           if (profileData && profileData.merchantProfile) {
             if (!profileData.merchantProfile.onboardingCompleted) {
@@ -258,7 +266,7 @@ export const MerchantDashboard: React.FC = () => {
             }`}
           >
             <Package className="w-4 h-4" />
-            <span>Products & Inventory ({products.length})</span>
+            <span>Store Catalog ({products.length})</span>
           </button>
 
           <button
@@ -293,13 +301,13 @@ export const MerchantDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Tab 1: Products Inventory */}
+      {/* Tab 1: Products Catalog */}
       {activeTab === 'products' && (
         <div className="bg-white/50 backdrop-blur-2xl rounded-3xl border border-white/70 shadow-2xl shadow-blue-500/10 overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-[#0066FF]" />
-              <span>Loading inventory...</span>
+              <span>Loading products...</span>
             </div>
           ) : products.length > 0 ? (
             <div className="overflow-x-auto">
@@ -309,7 +317,6 @@ export const MerchantDashboard: React.FC = () => {
                     <th className="px-6 py-3.5">Product</th>
                     <th className="px-4 py-3.5">Category</th>
                     <th className="px-4 py-3.5">Price</th>
-                    <th className="px-4 py-3.5">Stock</th>
                     <th className="px-4 py-3.5">Rating</th>
                     <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
@@ -333,13 +340,6 @@ export const MerchantDashboard: React.FC = () => {
                       <td className="px-4 py-4">{p.category}</td>
                       <td className="px-4 py-4 font-mono font-bold text-slate-900">
                         ₹{p.price.toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          (p.stockCount || 10) > 5 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {p.inStock ? `${p.stockCount || 10} units` : 'Out of Stock'}
-                        </span>
                       </td>
                       <td className="px-4 py-4 font-bold text-amber-600">
                         ★ {p.rating}
@@ -368,8 +368,23 @@ export const MerchantDashboard: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-slate-500 text-xs">
-              No products found in store catalog.
+            <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-4">
+              <div className="w-16 h-16 rounded-3xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200/80 shadow-md">
+                <Package className="w-8 h-8" />
+              </div>
+              <div className="max-w-md space-y-1">
+                <h3 className="text-base font-extrabold text-slate-900 font-poppins">No Products in Your Catalog Yet</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  As a newly registered NexVolt merchant, publish your first electronics listing to make it immediately visible to verified buyers across India.
+                </p>
+              </div>
+              <button
+                onClick={handleOpenAddProduct}
+                className="mt-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer font-poppins"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Your First Product</span>
+              </button>
             </div>
           )}
         </div>
@@ -432,8 +447,16 @@ export const MerchantDashboard: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-slate-500 text-xs">
-              No merchant orders yet.
+            <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200">
+                <ShoppingBag className="w-8 h-8" />
+              </div>
+              <div className="max-w-md space-y-1">
+                <h3 className="text-base font-extrabold text-slate-900 font-poppins">No Store Orders Received Yet</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Whenever a customer places an order for your electronics items, the full shipping details and order items will appear here for you to fulfill.
+                </p>
+              </div>
             </div>
           )}
         </div>

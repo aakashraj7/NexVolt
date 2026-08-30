@@ -8,7 +8,7 @@ const router = express.Router();
 const populateCart = async (cart) => {
   return await Cart.findById(cart._id).populate({
     path: 'items.product',
-    select: 'title slug price originalPrice discountPercent thumbnail inStock stockCount badge brand'
+    select: 'title slug price originalPrice discountPercent thumbnail badge brand'
   });
 };
 
@@ -18,7 +18,7 @@ router.get('/:userId', async (req, res) => {
     const { userId } = req.params;
     let cart = await Cart.findOne({ userId }).populate({
       path: 'items.product',
-      select: 'title slug price originalPrice discountPercent thumbnail inStock stockCount badge brand'
+      select: 'title slug price originalPrice discountPercent thumbnail badge brand'
     });
 
     if (!cart) {

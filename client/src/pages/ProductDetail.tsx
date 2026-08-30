@@ -308,9 +308,12 @@ export const ProductDetailPage: React.FC = () => {
         {/* Right Product Buy Box (6 cols) */}
         <div className="lg:col-span-6 space-y-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-700 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200">
                 {product.brand}
+              </span>
+              <span className="text-xs font-semibold text-slate-600 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200">
+                Sold by: <strong className="text-slate-800">{product.merchantStoreName || product.merchantName || 'NexVolt Verified Partner'}</strong>
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading leading-tight">
@@ -524,15 +527,12 @@ export const ProductDetailPage: React.FC = () => {
                 <span className="px-4 text-sm font-bold text-slate-900 font-mono">{quantity}</span>
                 <button
                   type="button"
-                  onClick={() => setQuantity(Math.min(product.stockCount || 10, quantity + 1))}
+                  onClick={() => setQuantity(Math.min(99, quantity + 1))}
                   className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <span className="text-xs text-emerald-600 font-bold">
-                {product.inStock ? 'In Stock' : 'Out of Stock'}
-              </span>
             </div>
 
             {/* Buy & Cart Buttons - Mobile optimized stacking */}

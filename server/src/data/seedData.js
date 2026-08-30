@@ -10,8 +10,6 @@ export const seedProducts = [
     discountPercent: 10,
     rating: 4.9,
     numReviews: 328,
-    inStock: true,
-    stockCount: 14,
     thumbnail: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80",
@@ -53,8 +51,6 @@ export const seedProducts = [
     discountPercent: 23,
     rating: 4.8,
     numReviews: 1240,
-    inStock: true,
-    stockCount: 45,
     thumbnail: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80",
@@ -95,8 +91,6 @@ export const seedProducts = [
     discountPercent: 10,
     rating: 4.8,
     numReviews: 890,
-    inStock: true,
-    stockCount: 20,
     thumbnail: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80",
@@ -136,8 +130,6 @@ export const seedProducts = [
     discountPercent: 16,
     rating: 4.7,
     numReviews: 156,
-    inStock: true,
-    stockCount: 8,
     thumbnail: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&q=80",
@@ -177,8 +169,6 @@ export const seedProducts = [
     discountPercent: 0,
     rating: 4.9,
     numReviews: 412,
-    inStock: true,
-    stockCount: 18,
     thumbnail: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80",
@@ -218,8 +208,6 @@ export const seedProducts = [
     discountPercent: 9,
     rating: 4.9,
     numReviews: 2450,
-    inStock: true,
-    stockCount: 30,
     thumbnail: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800&q=80",
@@ -258,8 +246,6 @@ export const seedProducts = [
     discountPercent: 12,
     rating: 4.9,
     numReviews: 184,
-    inStock: true,
-    stockCount: 10,
     thumbnail: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
@@ -298,8 +284,6 @@ export const seedProducts = [
     discountPercent: 11,
     rating: 4.8,
     numReviews: 210,
-    inStock: true,
-    stockCount: 12,
     thumbnail: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&q=80",
@@ -338,8 +322,6 @@ export const seedProducts = [
     discountPercent: 23,
     rating: 4.8,
     numReviews: 540,
-    inStock: true,
-    stockCount: 60,
     thumbnail: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80",
@@ -378,8 +360,6 @@ export const seedProducts = [
     discountPercent: 14,
     rating: 4.9,
     numReviews: 3100,
-    inStock: true,
-    stockCount: 85,
     thumbnail: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&q=80",
@@ -418,8 +398,6 @@ export const seedProducts = [
     discountPercent: 13,
     rating: 4.8,
     numReviews: 430,
-    inStock: true,
-    stockCount: 22,
     thumbnail: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80",
@@ -458,8 +436,6 @@ export const seedProducts = [
     discountPercent: 25,
     rating: 4.8,
     numReviews: 298,
-    inStock: true,
-    stockCount: 15,
     thumbnail: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
     images: [
       "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import { useUser } from '@clerk/clerk-react';
 import type { Product } from '../../types';
 
 const AVAILABLE_CATEGORIES = [
@@ -46,6 +47,7 @@ export const ProductStudioModal: React.FC<ProductStudioModalProps> = ({
   onSuccess,
   editingProduct
 }) => {
+  const { user } = useUser();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -256,14 +258,15 @@ export const ProductStudioModal: React.FC<ProductStudioModalProps> = ({
     setIsSubmitting(true);
     try {
       const productPayload = {
+        merchantId: user?.id || 'seed_merchant_nexvolt',
+        merchantEmail: user?.primaryEmailAddress?.emailAddress || '',
+        merchantName: user?.fullName || 'NexVolt Merchant',
         title: title.trim(),
         brand: brand.trim(),
         category,
         price: numericSalePrice,
         originalPrice: numericOriginalPrice > numericSalePrice ? numericOriginalPrice : numericSalePrice,
         discountPercent,
-        inStock: true,
-        stockCount: 50, // Defaulted in background, no stock count input
         thumbnail: images[0],
         images: images,
         shortDescription: shortDescription.trim() || `${brand} ${title} premium electronics product.`,
@@ -694,10 +697,6 @@ export const ProductStudioModal: React.FC<ProductStudioModalProps> = ({
                         {discountPercent}% OFF
                       </span>
                     )}
-
-                    <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-emerald-500/90 backdrop-blur-xs text-white text-[10px] font-extrabold flex items-center gap-1 font-poppins">
-                      <Zap className="w-3 h-3 fill-white" /> In Stock
-                    </span>
                   </div>
 
                   {/* Thumbnail Swatch Preview (Click to switch large view) */}

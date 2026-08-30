@@ -18,10 +18,10 @@ export const api = {
     search?: string;
     category?: string;
     brand?: string;
+    merchantId?: string;
     minPrice?: number;
     maxPrice?: number;
     rating?: number;
-    inStock?: boolean;
     isFeatured?: boolean;
     isDeal?: boolean;
     sort?: string;
@@ -43,6 +43,9 @@ export const api = {
 
     // Fallback client-side filtering
     let list = [...MOCK_PRODUCTS];
+    if (params?.merchantId) {
+      list = list.filter(p => p.merchantId === params.merchantId);
+    }
     if (params?.isFeatured) {
       list = list.filter(p => p.isFeatured);
     }
@@ -74,9 +77,6 @@ export const api = {
     }
     if (params?.rating !== undefined) {
       list = list.filter(p => p.rating >= (params.rating || 0));
-    }
-    if (params?.inStock) {
-      list = list.filter(p => p.inStock);
     }
 
     // Sorting
@@ -292,9 +292,9 @@ export const api = {
   },
 
   // Merchant & Seller API
-  async getMerchantStats() {
+  async getMerchantStats(merchantId?: string) {
     try {
-      const res = await apiClient.get('/merchant/stats');
+      const res = await apiClient.get('/merchant/stats', { params: { merchantId } });
       if (res.data && res.data.success) {
         return res.data.stats;
       }
@@ -304,7 +304,22 @@ export const api = {
     return null;
   },
 
-  async getMerchantOrders(params?: { status?: string; search?: string }) {
+  async getMerchantProducts(merchantId: string, params?: { search?: string; category?: string; page?: number; limit?: number }) {
+    try {
+      const res = await apiClient.get('/merchant/products', { params: { merchantId, ...params } });
+      if (res.data && res.data.success) {
+        return {
+          products: res.data.products,
+          total: res.data.total
+        };
+      }
+    } catch (err) {
+      console.warn('Backend getMerchantProducts unavailable, falling back to filter:', err);
+    }
+    return { products: [], total: 0 };
+  },
+
+  async getMerchantOrders(params?: { status?: string; search?: string; merchantId?: string }) {
     try {
       const res = await apiClient.get('/merchant/orders', { params });
       if (res.data && res.data.success) {
@@ -449,7 +464,7 @@ export const api = {
     }
   },
 
-  async getMerchantProfile(userId: string, initialData?: { email?: string; fullName?: string; storeName?: string }) {
+  async getMerchantProfile(userId: string, initialData?: { email?: string; fullName?: string; storeName?: string; provider?: string; authProvider?: string }) {
     try {
       const res = await apiClient.get(`/users/merchant-profile/${userId}`, { params: initialData });
       return res.data;
@@ -469,9 +484,9 @@ export const api = {
     }
   },
 
-  async checkUserRole(userId: string, email?: string) {
+  async checkUserRole(userId: string, email?: string, provider?: string) {
     try {
-      const res = await apiClient.get(`/users/check-role/${userId || 'guest'}`, { params: { email } });
+      const res = await apiClient.get(`/users/check-role/${userId || 'guest'}`, { params: { email, provider } });
       return res.data;
     } catch (err) {
       console.warn('Backend checkUserRole error:', err);

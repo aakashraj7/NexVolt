@@ -10,10 +10,10 @@ router.get('/', async (req, res) => {
       search,
       category,
       brand,
+      merchantId,
       minPrice,
       maxPrice,
       rating,
-      inStock,
       isFeatured,
       isDeal,
       sort,
@@ -22,6 +22,11 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     const query = {};
+
+    // Merchant specific filter
+    if (merchantId) {
+      query.merchantId = merchantId;
+    }
 
     // Text search or regex search
     if (search) {
@@ -55,11 +60,6 @@ router.get('/', async (req, res) => {
     // Rating filter
     if (rating !== undefined && !isNaN(rating)) {
       query.rating = { $gte: Number(rating) };
-    }
-
-    // In Stock filter
-    if (inStock === 'true') {
-      query.inStock = true;
     }
 
     // Featured / Deal filters

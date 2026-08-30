@@ -69,7 +69,7 @@ export const MerchantAuthPage: React.FC<MerchantAuthPageProps> = ({ initialMode 
                   </h1>
 
                   <p className="text-slate-600 text-xs sm:text-sm leading-relaxed max-w-md font-medium">
-                    Manage your electronics inventory, track customer orders, and access AI Revenue Recovery.
+                    Publish your electronics catalog, track customer orders, and access AI Revenue Recovery.
                   </p>
                 </>
               ) : (
@@ -105,7 +105,7 @@ export const MerchantAuthPage: React.FC<MerchantAuthPageProps> = ({ initialMode 
                   <div className="w-7 h-7 rounded-full bg-blue-50 text-[#0066FF] flex items-center justify-center shrink-0 border border-blue-200/80 shadow-2xs group-hover:scale-105 transition-transform">
                     <Store className="w-3.5 h-3.5" />
                   </div>
-                  <span>Full inventory management, order dispatch & AI recovery suite</span>
+                  <span>Product catalog publishing, order dispatch & AI recovery suite</span>
                 </div>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
+import Product from '../models/Product.js';
 
 const router = express.Router();
 
@@ -34,7 +35,8 @@ router.get('/check-phone', async (req, res) => {
 router.get('/profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { email, fullName, provider } = req.query;
+    const { email, fullName, provider, authProvider } = req.query;
+    const isGoogle = provider === 'oauth_google' || provider === 'google' || authProvider === 'google';
 
     let user = await User.findOne({ userId });
 
@@ -44,10 +46,13 @@ router.get('/profile/:userId', async (req, res) => {
         userId,
         email: email.toString().toLowerCase(),
         fullName: fullName ? fullName.toString() : '',
-        authProvider: provider === 'oauth_google' || provider === 'google' ? 'google' : 'email_password',
-        hasPassword: provider !== 'oauth_google' && provider !== 'google',
+        authProvider: isGoogle ? 'google' : 'email_password',
+        hasPassword: !isGoogle,
         addresses: []
       });
+      await user.save();
+    } else if (user && isGoogle && user.authProvider !== 'google') {
+      user.authProvider = 'google';
       await user.save();
     }
 
@@ -401,7 +406,8 @@ router.post('/password/verify-and-set', async (req, res) => {
 router.get('/merchant-profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { email } = req.query;
+    const { email, fullName, provider, authProvider } = req.query;
+    const isGoogle = provider === 'oauth_google' || provider === 'google' || authProvider === 'google';
 
     let user = await User.findOne({
       $or: [
@@ -409,6 +415,43 @@ router.get('/merchant-profile/:userId', async (req, res) => {
         ...(email ? [{ email: email.toString().toLowerCase() }] : [])
       ]
     });
+
+    if (!user && email) {
+      // Auto-create initial merchant profile document
+      user = new User({
+        userId,
+        email: email.toString().toLowerCase(),
+        fullName: fullName ? fullName.toString() : '',
+        authProvider: isGoogle ? 'google' : 'email_password',
+        hasPassword: !isGoogle,
+        role: 'merchant',
+        isMerchant: true,
+        onboardingCompleted: false,
+        merchantProfile: {
+          storeName: fullName ? `${fullName}'s Tech Store` : 'My Tech Store',
+          supportEmail: email.toString().toLowerCase(),
+          onboardingCompleted: false
+        }
+      });
+      await user.save();
+    } else if (user) {
+      let modified = false;
+      if (isGoogle && user.authProvider !== 'google') {
+        user.authProvider = 'google';
+        modified = true;
+      }
+      if (user.userId !== userId && userId && userId !== 'undefined') {
+        user.userId = userId;
+        modified = true;
+      }
+      if (!user.isMerchant && user.role === 'merchant') {
+        user.isMerchant = true;
+        modified = true;
+      }
+      if (modified) {
+        await user.save();
+      }
+    }
 
     if (!user || (!user.isMerchant && user.role !== 'merchant')) {
       return res.json({
@@ -444,17 +487,26 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       supportEmail,
       website,
       warehouses,
-      onboardingCompleted
+      onboardingCompleted,
+      authProvider,
+      email
     } = req.body;
 
-    let user = await User.findOne({ userId });
+    let user = await User.findOne({
+      $or: [
+        { userId },
+        ...(email ? [{ email: email.toString().toLowerCase() }] : []),
+        ...(supportEmail ? [{ email: supportEmail.toString().toLowerCase() }] : [])
+      ]
+    });
 
     if (!user) {
       user = new User({
         userId,
-        email: (supportEmail || '').toLowerCase(),
+        email: (email || supportEmail || '').toLowerCase(),
         fullName: ownerName || storeName || '',
-        isMerchant: true
+        isMerchant: true,
+        authProvider: authProvider || 'email_password'
       });
     }
 
@@ -462,8 +514,14 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       user.fullName = ownerName.trim();
     }
 
+    if (authProvider) {
+      user.authProvider = authProvider;
+    }
+
+    const isDone = onboardingCompleted !== undefined ? Boolean(onboardingCompleted) : true;
     user.isMerchant = true;
     user.role = 'merchant';
+    user.onboardingCompleted = isDone; // <-- Sets top-level onboardingCompleted!
     user.merchantProfile = {
       storeName: storeName !== undefined ? storeName : (user.merchantProfile?.storeName || ''),
       businessType: businessType !== undefined ? businessType : (user.merchantProfile?.businessType || ''),
@@ -474,7 +532,7 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       supportEmail: supportEmail !== undefined ? supportEmail.toLowerCase() : (user.merchantProfile?.supportEmail || user.email),
       website: website !== undefined ? website : (user.merchantProfile?.website || ''),
       warehouses: warehouses && warehouses.length > 0 ? warehouses : (user.merchantProfile?.warehouses || []),
-      onboardingCompleted: onboardingCompleted !== undefined ? onboardingCompleted : (user.merchantProfile?.onboardingCompleted || true)
+      onboardingCompleted: isDone
     };
 
     await user.save();
@@ -494,7 +552,8 @@ router.post('/merchant-profile/:userId', async (req, res) => {
 router.get('/check-role/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { email } = req.query;
+    const { email, provider, authProvider } = req.query;
+    const isGoogle = provider === 'oauth_google' || provider === 'google' || authProvider === 'google';
 
     const queries = [];
     if (userId && userId !== 'undefined' && userId !== 'null') {
@@ -521,6 +580,12 @@ router.get('/check-role/:userId', async (req, res) => {
         onboardingCompleted: false,
         merchantOnboardingCompleted: false
       });
+    }
+
+    // If signed in with Google, ensure authProvider reflects in DB
+    if (isGoogle && user.authProvider !== 'google') {
+      user.authProvider = 'google';
+      await user.save();
     }
 
     const isMerchantUser = user.isMerchant === true || user.role === 'merchant';
@@ -622,7 +687,7 @@ router.post('/deactivate-customer/:userId', async (req, res) => {
   }
 });
 
-// POST /api/users/deactivate-merchant/:userId - Completely deactivate Merchant Store (Danger Zone)
+// POST /api/users/deactivate-merchant/:userId - Completely deactivate Merchant Store & Delete All Products (Danger Zone)
 router.post('/deactivate-merchant/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -632,16 +697,29 @@ router.post('/deactivate-merchant/:userId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Merchant account not found.' });
     }
 
+    // Permanently remove all products listed by this merchant from the marketplace
+    const productDeleteResult = await Product.deleteMany({
+      $or: [
+        { merchantId: userId },
+        ...(user.email ? [{ merchantEmail: user.email.toLowerCase() }] : [])
+      ]
+    });
+
+    console.log(`[Merchant Deactivation] Permanently removed ${productDeleteResult.deletedCount} products for merchant ${userId}`);
+
     user.isMerchant = false;
     user.role = 'user';
+    user.onboardingCompleted = false;
     user.merchantProfile = undefined;
     await user.save();
 
     res.json({
       success: true,
-      message: 'Your Merchant Storefront has been completely deactivated and removed.'
+      deletedProductsCount: productDeleteResult.deletedCount,
+      message: `Your Merchant Storefront has been deactivated and all ${productDeleteResult.deletedCount} products have been permanently deleted from NexVolt.`
     });
   } catch (error) {
+    console.error('Error deactivating merchant account:', error);
     res.status(500).json({ success: false, message: 'Error deactivating merchant account', error: error.message });
   }
 });

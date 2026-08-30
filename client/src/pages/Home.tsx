@@ -166,7 +166,7 @@ export const Home: React.FC = () => {
                   <div className="p-2 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-cyan-700 uppercase tracking-wider">MacBook Pro 16" M3 Max</span>
-                      <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">In Stock</span>
+                      <span className="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">Verified Merchant</span>
                     </div>
                     <p className="text-sm font-semibold text-slate-800">
                       The most powerful Mac laptop ever built for pro developers & creators.

@@ -103,8 +103,12 @@ export const MerchantProfilePage: React.FC = () => {
       setLoading(true);
       const email = user.primaryEmailAddress?.emailAddress || '';
       const fullName = user.fullName || '';
+      const isGoogle = user.externalAccounts && user.externalAccounts.some((acc: any) =>
+        acc.provider === 'google' || acc.provider === 'oauth_google' || acc.verification?.strategy === 'oauth_google'
+      );
+      const authProvider = isGoogle ? 'google' : 'email_password';
 
-      const data = await api.getMerchantProfile(user.id, { email, fullName });
+      const data = await api.getMerchantProfile(user.id, { email, fullName, provider: authProvider, authProvider });
 
       if (data?.user) {
         setUserDoc(data.user);
@@ -229,6 +233,11 @@ export const MerchantProfilePage: React.FC = () => {
 
     setSaving(true);
     try {
+      const isGoogle = user.externalAccounts && user.externalAccounts.some((acc: any) =>
+        acc.provider === 'google' || acc.provider === 'oauth_google' || acc.verification?.strategy === 'oauth_google'
+      );
+      const authProvider = isGoogle ? 'google' : 'email_password';
+
       const payload = {
         storeName: storeName.trim(),
         ownerName: ownerName.trim(),
@@ -238,7 +247,9 @@ export const MerchantProfilePage: React.FC = () => {
         gstin: gstin.trim().toUpperCase(),
         businessPhone: businessPhone.trim(),
         supportEmail: supportEmail.trim().toLowerCase(),
+        email: user.primaryEmailAddress?.emailAddress || supportEmail.trim().toLowerCase(),
         website: website.trim(),
+        authProvider,
         warehouses: warehouses.map(w => ({
           label: w.label,
           recipientName: w.recipientName,
@@ -601,7 +612,7 @@ export const MerchantProfilePage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-base sm:text-lg font-bold text-slate-900">Dispatch Warehouses & Pickup Hubs</h2>
-                      <p className="text-xs text-slate-500 font-medium">Logistics origins for carrier dispatch and inventory fulfillment</p>
+                      <p className="text-xs text-slate-500 font-medium">Logistics origins for carrier dispatch and order fulfillment</p>
                     </div>
                   </div>
 
@@ -751,11 +762,16 @@ export const MerchantProfilePage: React.FC = () => {
               </div>
 
               <div className="p-5 rounded-2xl bg-rose-50/60 border border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-rose-950">Deactivate Merchant & Seller Store</h3>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-rose-950">Deactivate Merchant Store & Purge Products</h3>
                   <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
-                    Deactivating your seller account will immediately unpublish all your listed products, pause pending order intake, and revoke access to the Merchant Portal.
+                    Deactivating your merchant account is permanent and irreversible:
                   </p>
+                  <ul className="text-xs text-rose-900 space-y-1 list-disc list-inside font-medium">
+                    <li><strong>All products in your store catalog will be permanently deleted</strong> and removed from the customer marketplace.</li>
+                    <li>Storefront profile, dispatch warehouse configurations, and order management will be terminated.</li>
+                    <li>Merchant portal access and AI Revenue Recovery agent will be revoked.</li>
+                  </ul>
                 </div>
 
                 <button
@@ -790,10 +806,19 @@ export const MerchantProfilePage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <h3 className="text-lg font-black text-slate-900">Deactivate Merchant Store?</h3>
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium space-y-1">
+                <p className="font-bold text-rose-900 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>Important Notice: All Products Will Be Deleted</span>
+                </p>
+                <p className="leading-relaxed">
+                  Every product listed by your merchant account will be <strong>permanently removed and deleted</strong> from the NexVolt storefront immediately. This action cannot be reversed.
+                </p>
+              </div>
               <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                This will delist your catalog products and suspend merchant operations. To proceed with deactivating your merchant store, type <span className="font-mono font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">DELETE</span> below.
+                To confirm permanent deactivation and product removal, type <span className="font-mono font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">DELETE</span> below.
               </p>
             </div>
 
