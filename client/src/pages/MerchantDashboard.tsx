@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import {
   Store,
   Package,
@@ -10,52 +10,41 @@ import {
   Trash2,
   Edit,
   Sparkles,
-  Search,
   CheckCircle2,
-  X,
   Loader2,
   Zap,
-  Settings,
-  ShieldAlert,
-  AlertTriangle
+  Settings
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, Order } from '../types';
 import { useToast } from '../context/ToastContext';
+import { ProductStudioModal } from '../components/merchant/ProductStudioModal';
 
 export const MerchantDashboard: React.FC = () => {
   const { user, isLoaded, isSignedIn } = useUser();
-  const { signOut } = useClerk();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'recovery' | 'settings'>('products');
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'recovery'>(
+    tabParam === 'orders' || tabParam === 'recovery' ? tabParam : 'products'
+  );
+
+  useEffect(() => {
+    if (tabParam === 'orders' || tabParam === 'recovery' || tabParam === 'products') {
+      setActiveTab(tabParam as any);
+    }
+  }, [tabParam]);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<any>(null);
-  const [merchantProfile, setMerchantProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Danger Zone Deactivation states
-  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
-  const [deactivateConfirmText, setDeactivateConfirmText] = useState('');
-  const [isDeactivating, setIsDeactivating] = useState(false);
-
-  // Product Add / Edit Modal states
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [title, setTitle] = useState('');
-  const [brand, setBrand] = useState('');
-  const [category, setCategory] = useState('Smartphones');
-  const [price, setPrice] = useState('');
-  const [originalPrice, setOriginalPrice] = useState('');
-  const [stockCount, setStockCount] = useState('15');
-  const [thumbnail, setThumbnail] = useState('');
-  const [shortDescription, setShortDescription] = useState('');
-  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
-
-  // Filter state for orders & products
-  const [searchTerm, setSearchTerm] = useState('');
+  // Product Studio Modal states
+  const [showStudioModal, setShowStudioModal] = useState(false);
+  const [selectedEditingProduct, setSelectedEditingProduct] = useState<Product | null>(null);
 
   const loadData = async () => {
     try {
@@ -96,7 +85,6 @@ export const MerchantDashboard: React.FC = () => {
             fullName: user.fullName || ''
           });
           if (profileData && profileData.merchantProfile) {
-            setMerchantProfile(profileData.merchantProfile);
             if (!profileData.merchantProfile.onboardingCompleted) {
               navigate('/merchant/onboarding');
               return;
@@ -112,91 +100,14 @@ export const MerchantDashboard: React.FC = () => {
     }
   }, [isLoaded, isSignedIn, user]);
 
-  const handleConfirmStoreDeactivation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || deactivateConfirmText.trim().toUpperCase() !== 'DELETE') {
-      showToast('Please type DELETE to confirm deactivation.', 'error');
-      return;
-    }
-
-    try {
-      setIsDeactivating(true);
-      await api.deactivateMerchantAccount(user.id);
-      showToast('Your Merchant Storefront has been completely deactivated.', 'success');
-      setShowDeactivateModal(false);
-      await signOut();
-      navigate('/');
-    } catch (err: any) {
-      console.error('Merchant deactivation error:', err);
-      showToast('Failed to deactivate merchant storefront.', 'error');
-    } finally {
-      setIsDeactivating(false);
-    }
-  };
-
   const handleOpenAddProduct = () => {
-    setEditingProductId(null);
-    setTitle('');
-    setBrand('');
-    setCategory('Smartphones');
-    setPrice('');
-    setOriginalPrice('');
-    setStockCount('15');
-    setThumbnail('');
-    setShortDescription('');
-    setShowProductModal(true);
+    setSelectedEditingProduct(null);
+    setShowStudioModal(true);
   };
 
   const handleOpenEditProduct = (p: Product) => {
-    setEditingProductId(p._id);
-    setTitle(p.title);
-    setBrand(p.brand);
-    setCategory(p.category);
-    setPrice(p.price.toString());
-    setOriginalPrice(p.originalPrice.toString());
-    setStockCount((p.stockCount || 10).toString());
-    setThumbnail(p.thumbnail);
-    setShortDescription(p.shortDescription || '');
-    setShowProductModal(true);
-  };
-
-  const handleSaveProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !brand || !price || !thumbnail) {
-      showToast('Please fill in required product fields.', 'error');
-      return;
-    }
-
-    try {
-      setIsSubmittingProduct(true);
-      const productPayload = {
-        title,
-        brand,
-        category,
-        price: Number(price),
-        originalPrice: originalPrice ? Number(originalPrice) : Number(price),
-        stockCount: Number(stockCount),
-        thumbnail,
-        images: [thumbnail],
-        shortDescription,
-        highlights: ['Certified Brand Warranty', 'Express Dispatch Eligible']
-      };
-
-      if (editingProductId) {
-        await api.updateMerchantProduct(editingProductId, productPayload);
-        showToast('Product updated successfully!', 'success');
-      } else {
-        await api.createMerchantProduct(productPayload);
-        showToast('New product published to store!', 'success');
-      }
-
-      setShowProductModal(false);
-      loadData();
-    } catch (err) {
-      showToast('Failed to save product.', 'error');
-    } finally {
-      setIsSubmittingProduct(false);
-    }
+    setSelectedEditingProduct(p);
+    setShowStudioModal(true);
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
@@ -221,18 +132,6 @@ export const MerchantDashboard: React.FC = () => {
     }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredOrders = orders.filter(o =>
-    o.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.customerDetails?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.customerDetails?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const abandonedCheckouts = orders.filter(o => o.checkoutStatus === 'abandoned');
   const recoveredOrders = orders.filter(o => o.checkoutStatus === 'recovered');
 
@@ -246,27 +145,35 @@ export const MerchantDashboard: React.FC = () => {
               <Store className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-poppins tracking-tight">
                 NexVolt Merchant Hub
               </h1>
-              <p className="text-slate-500 text-xs mt-0.5">
-                Logged in as <strong className="text-slate-800">{user?.fullName || user?.primaryEmailAddress?.emailAddress}</strong>
+              <p className="text-slate-500 text-xs mt-0.5 font-medium">
+                Logged in as <strong className="text-slate-800 font-semibold">{user?.fullName || user?.primaryEmailAddress?.emailAddress}</strong>
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <Link
+            to="/merchant/profile"
+            className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 hover:text-[#0066FF] border border-slate-300 hover:border-[#0066FF] font-bold text-xs shadow-xs transition flex items-center gap-2 font-poppins"
+          >
+            <Settings className="w-4 h-4 text-slate-500" />
+            <span>Store Profile & Settings</span>
+          </Link>
+
           <button
             onClick={handleOpenAddProduct}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer font-poppins"
           >
             <Plus className="w-4 h-4" />
             <span>Add New Product</span>
           </button>
           <Link
             to="/products"
-            className="px-4 py-2.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 font-bold text-xs shadow-xs transition"
+            className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 font-bold text-xs shadow-xs transition font-poppins"
           >
             View Live Store
           </Link>
@@ -275,8 +182,8 @@ export const MerchantDashboard: React.FC = () => {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+        <div className="bg-white/50 backdrop-blur-2xl rounded-2xl p-5 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold font-poppins">
             <span>Total Gross Revenue</span>
             <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
               <TrendingUp className="w-4 h-4" />
@@ -285,13 +192,13 @@ export const MerchantDashboard: React.FC = () => {
           <p className="text-2xl font-extrabold text-slate-900 font-mono">
             ₹{stats?.totalRevenue ? stats.totalRevenue.toLocaleString('en-IN') : '0'}
           </p>
-          <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+          <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 font-poppins">
             <CheckCircle2 className="w-3.5 h-3.5" /> 100% Razorpay verified payouts
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+        <div className="bg-white/50 backdrop-blur-2xl rounded-2xl p-5 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold font-poppins">
             <span>Customer Orders</span>
             <div className="p-1.5 rounded-lg bg-blue-50 text-[#0066FF]">
               <ShoppingBag className="w-4 h-4" />
@@ -300,13 +207,13 @@ export const MerchantDashboard: React.FC = () => {
           <p className="text-2xl font-extrabold text-slate-900 font-mono">
             {stats?.totalOrders || orders.length}
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 font-poppins font-medium">
             {stats?.completedOrders || 0} completed & dispatched
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+        <div className="bg-white/50 backdrop-blur-2xl rounded-2xl p-5 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold font-poppins">
             <span>Active Products</span>
             <div className="p-1.5 rounded-lg bg-cyan-50 text-cyan-600">
               <Package className="w-4 h-4" />
@@ -315,13 +222,13 @@ export const MerchantDashboard: React.FC = () => {
           <p className="text-2xl font-extrabold text-slate-900 font-mono">
             {products.length}
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 font-poppins font-medium">
             In store catalog & search index
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-purple-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-purple-700 text-xs font-bold">
+        <div className="bg-white/50 backdrop-blur-2xl rounded-2xl p-5 border border-purple-200/70 shadow-2xl shadow-purple-500/10 space-y-1">
+          <div className="flex items-center justify-between text-purple-700 text-xs font-bold font-poppins">
             <span>AI Recovered Sales</span>
             <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
               <Sparkles className="w-4 h-4" />
@@ -330,7 +237,7 @@ export const MerchantDashboard: React.FC = () => {
           <p className="text-2xl font-extrabold text-purple-900 font-mono">
             ₹{stats?.recoveredRevenue ? stats.recoveredRevenue.toLocaleString('en-IN') : '0'}
           </p>
-          <p className="text-[11px] text-purple-700 font-bold">
+          <p className="text-[11px] text-purple-700 font-bold font-poppins">
             Track 3 AI Revenue Agent Active
           </p>
         </div>
@@ -338,10 +245,13 @@ export const MerchantDashboard: React.FC = () => {
 
       {/* Tabs Navigation */}
       <div className="border-b border-slate-200">
-        <div className="flex items-center gap-8 text-sm font-bold">
+        <div className="flex items-center gap-8 text-sm font-bold font-poppins">
           <button
-            onClick={() => setActiveTab('products')}
-            className={`pb-3 border-b-2 transition flex items-center gap-2 ${
+            onClick={() => {
+              setActiveTab('products');
+              setSearchParams({ tab: 'products' });
+            }}
+            className={`pb-3 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === 'products'
                 ? 'border-[#0066FF] text-[#0066FF]'
                 : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -352,8 +262,11 @@ export const MerchantDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('orders')}
-            className={`pb-3 border-b-2 transition flex items-center gap-2 ${
+            onClick={() => {
+              setActiveTab('orders');
+              setSearchParams({ tab: 'orders' });
+            }}
+            className={`pb-3 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === 'orders'
                 ? 'border-[#0066FF] text-[#0066FF]'
                 : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -364,8 +277,11 @@ export const MerchantDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('recovery')}
-            className={`pb-3 border-b-2 transition flex items-center gap-2 ${
+            onClick={() => {
+              setActiveTab('recovery');
+              setSearchParams({ tab: 'recovery' });
+            }}
+            className={`pb-3 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === 'recovery'
                 ? 'border-[#0066FF] text-[#0066FF]'
                 : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -374,47 +290,21 @@ export const MerchantDashboard: React.FC = () => {
             <Sparkles className="w-4 h-4 text-purple-600" />
             <span>AI Revenue Recovery Agent</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`pb-3 border-b-2 transition flex items-center gap-2 ${
-              activeTab === 'settings'
-                ? 'border-rose-600 text-rose-600'
-                : 'border-transparent text-slate-500 hover:text-rose-600'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Store Settings & Danger Zone</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Search Filter Bar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={`Search in ${activeTab}...`}
-            className="w-full bg-white border border-slate-300 rounded-xl py-2 pl-10 pr-4 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-xs"
-          />
         </div>
       </div>
 
       {/* Tab 1: Products Inventory */}
       {activeTab === 'products' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="bg-white/50 backdrop-blur-2xl rounded-3xl border border-white/70 shadow-2xl shadow-blue-500/10 overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-[#0066FF]" />
               <span>Loading inventory...</span>
             </div>
-          ) : filteredProducts.length > 0 ? (
+          ) : products.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-3.5">Product</th>
                     <th className="px-4 py-3.5">Category</th>
@@ -425,7 +315,7 @@ export const MerchantDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredProducts.map((p) => (
+                  {products.map((p) => (
                     <tr key={p._id} className="hover:bg-slate-50/70 transition">
                       <td className="px-6 py-4 flex items-center gap-3">
                         <img
@@ -434,10 +324,10 @@ export const MerchantDashboard: React.FC = () => {
                           className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
                         />
                         <div className="min-w-0">
-                          <Link to={`/products/${p.slug}`} className="font-bold text-slate-900 hover:text-[#0066FF] block truncate max-w-xs">
+                          <Link to={`/products/${p.slug}`} className="font-bold text-slate-900 hover:text-[#0066FF] block truncate max-w-xs font-poppins">
                             {p.title}
                           </Link>
-                          <span className="text-[10px] uppercase font-bold text-[#0066FF]">{p.brand}</span>
+                          <span className="text-[10px] uppercase font-bold text-[#0066FF] font-poppins">{p.brand}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4">{p.category}</td>
@@ -458,14 +348,14 @@ export const MerchantDashboard: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleOpenEditProduct(p)}
-                            className="p-2 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-[#0066FF] text-slate-600 transition"
+                            className="p-2 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-[#0066FF] text-slate-600 transition cursor-pointer"
                             title="Edit Product"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteProduct(p._id, p.title)}
-                            className="p-2 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition"
+                            className="p-2 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition cursor-pointer"
                             title="Delete Product"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -479,7 +369,7 @@ export const MerchantDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="py-16 text-center text-slate-500 text-xs">
-              No products found matching your search.
+              No products found in store catalog.
             </div>
           )}
         </div>
@@ -487,11 +377,11 @@ export const MerchantDashboard: React.FC = () => {
 
       {/* Tab 2: Store Orders */}
       {activeTab === 'orders' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          {filteredOrders.length > 0 ? (
+        <div className="bg-white/50 backdrop-blur-2xl rounded-3xl border border-white/70 shadow-2xl shadow-blue-500/10 overflow-hidden">
+          {orders.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-3.5">Order ID</th>
                     <th className="px-4 py-3.5">Customer</th>
@@ -502,7 +392,7 @@ export const MerchantDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredOrders.map((o) => (
+                  {orders.map((o) => (
                     <tr key={o.orderId} className="hover:bg-slate-50/70 transition">
                       <td className="px-6 py-4 font-mono font-bold text-slate-900">
                         {o.orderId}
@@ -552,11 +442,11 @@ export const MerchantDashboard: React.FC = () => {
       {/* Tab 3: Track 3 AI Revenue Recovery Hub */}
       {activeTab === 'recovery' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-900 to-indigo-950 text-white space-y-3 shadow-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-cyan-300 text-xs font-bold uppercase">
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-900 to-indigo-950 text-white space-y-3 shadow-xl shadow-blue-950/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-cyan-300 text-xs font-bold uppercase font-poppins">
               <Zap className="w-3.5 h-3.5" /> Razorpay Buildathon Track 3: AI Revenue Recovery Agent
             </div>
-            <h2 className="text-2xl font-extrabold font-heading">
+            <h2 className="text-2xl font-extrabold font-poppins">
               Autonomous AI Cart & Checkout Abandonment Recovery
             </h2>
             <p className="text-blue-200 text-xs leading-relaxed max-w-2xl">
@@ -566,8 +456,8 @@ export const MerchantDashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Abandoned Checkouts */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-              <h3 className="text-base font-bold text-slate-900 flex items-center justify-between">
+            <div className="bg-white/50 backdrop-blur-2xl rounded-3xl p-6 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
                 <span>Abandoned Checkout Sessions</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-mono">
                   {abandonedCheckouts.length} Active
@@ -576,14 +466,14 @@ export const MerchantDashboard: React.FC = () => {
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                 {abandonedCheckouts.length > 0 ? (
                   abandonedCheckouts.map((o) => (
-                    <div key={o.orderId} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
+                    <div key={o.orderId} className="p-3 rounded-xl bg-slate-50/80 border border-slate-200 text-xs flex items-center justify-between">
                       <div>
                         <p className="font-bold text-slate-900 font-mono">{o.orderId}</p>
                         <p className="text-slate-500 text-[11px]">{o.customerDetails?.email}</p>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-slate-900 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-amber-600 font-semibold">Drop-off detected</span>
+                        <span className="block text-[10px] text-amber-600 font-semibold font-poppins">Drop-off detected</span>
                       </div>
                     </div>
                   ))
@@ -594,8 +484,8 @@ export const MerchantDashboard: React.FC = () => {
             </div>
 
             {/* Recovered Orders */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-              <h3 className="text-base font-bold text-slate-900 flex items-center justify-between">
+            <div className="bg-white/50 backdrop-blur-2xl rounded-3xl p-6 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
                 <span>AI Recovered Orders</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono">
                   {recoveredOrders.length} Recovered
@@ -611,7 +501,7 @@ export const MerchantDashboard: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-emerald-700 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-emerald-600 font-bold">Revenue Saved by AI</span>
+                        <span className="block text-[10px] text-emerald-600 font-bold font-poppins">Revenue Saved by AI</span>
                       </div>
                     </div>
                   ))
@@ -624,294 +514,16 @@ export const MerchantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 4: Store Settings & Danger Zone */}
-      {activeTab === 'settings' && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Store Overview Card */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900">Seller Storefront Information</h3>
-              <p className="text-slate-500 text-xs mt-0.5">Your official business profile, certified categories, and dispatch hubs.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Store Brand Name</span>
-                <p className="text-sm font-bold text-slate-900 mt-1">{merchantProfile?.storeName || user?.fullName || 'NexVolt Seller'}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Primary Category</span>
-                <p className="text-sm font-bold text-slate-900 mt-1">{merchantProfile?.category || 'Consumer Electronics'}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">GSTIN / Tax ID</span>
-                <p className="text-sm font-mono font-bold text-slate-900 mt-1">{merchantProfile?.gstin || '29ABCDE1234F1Z5'}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Support Business Email</span>
-                <p className="text-xs font-semibold text-slate-900 mt-1 truncate">{merchantProfile?.supportEmail || user?.primaryEmailAddress?.emailAddress}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Business Phone</span>
-                <p className="text-xs font-semibold text-slate-900 mt-1">{merchantProfile?.businessPhone || '+91 98765 43210'}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Dispatch Warehouses</span>
-                <p className="text-xs font-bold text-slate-900 mt-1">{merchantProfile?.warehouses?.length || 1} Active Location(s)</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Danger Zone Card */}
-          <div className="bg-rose-50/50 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-rose-200 shadow-xl shadow-rose-500/5 space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
-                <ShieldAlert className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-rose-900">Danger Zone</h3>
-                <p className="text-rose-700 text-xs mt-1 leading-relaxed">
-                  Permanently deactivate your merchant storefront and delete your seller business privileges from NexVolt.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white/80 border border-rose-200/80 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">Deactivate Seller Storefront</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                    This will permanently remove your seller store, delist your products from the NexVolt catalog, and cancel active inventory integrations.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeactivateConfirmText('');
-                    setShowDeactivateModal(true);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition flex items-center justify-center gap-2 shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Deactivate Storefront</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Deactivation Confirmation Modal */}
-      {showDeactivateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 shadow-2xl space-y-5 animate-toast-in text-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-rose-600 font-extrabold text-sm">
-                <AlertTriangle className="w-4 h-4" />
-                <span>Confirm Store Deactivation</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDeactivateModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-slate-600 leading-relaxed">
-              This action is <strong className="text-rose-600">permanent and irreversible</strong>. Your electronics listings, seller analytics, and merchant badge will be wiped from the platform.
-            </p>
-
-            <form onSubmit={handleConfirmStoreDeactivation} className="space-y-4">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Type <span className="font-mono text-rose-600 font-extrabold">DELETE</span> to confirm:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={deactivateConfirmText}
-                  onChange={(e) => setDeactivateConfirmText(e.target.value)}
-                  placeholder="DELETE"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono tracking-wider outline-none focus:border-rose-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDeactivateModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isDeactivating || deactivateConfirmText.trim().toUpperCase() !== 'DELETE'}
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isDeactivating ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Deactivating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Permanently Deactivate</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add / Edit Product Modal */}
-      {showProductModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 sm:p-8 relative my-8 animate-in fade-in zoom-in-95 duration-150">
-            <button
-              onClick={() => setShowProductModal(false)}
-              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-xl font-extrabold text-slate-900 font-heading mb-4">
-              {editingProductId ? 'Edit Product Details' : 'Publish New Electronics Product'}
-            </h3>
-
-            <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Product Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Sony WH-1000XM5 Noise Canceling Headphones"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Brand Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                    placeholder="e.g. Sony, Apple, Samsung"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                  >
-                    <option value="Smartphones">Smartphones</option>
-                    <option value="Laptops & Computers">Laptops & Computers</option>
-                    <option value="Audio & Headphones">Audio & Headphones</option>
-                    <option value="Smartwatches & Wearables">Smartwatches & Wearables</option>
-                    <option value="Gaming & VR">Gaming & VR</option>
-                    <option value="Cameras & Drones">Cameras & Drones</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Sale Price (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="29990"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Original Price (₹)</label>
-                  <input
-                    type="number"
-                    value={originalPrice}
-                    onChange={(e) => setOriginalPrice(e.target.value)}
-                    placeholder="34990"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Stock Count</label>
-                  <input
-                    type="number"
-                    value={stockCount}
-                    onChange={(e) => setStockCount(e.target.value)}
-                    placeholder="15"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Product Image URL *</label>
-                <input
-                  type="url"
-                  required
-                  value={thumbnail}
-                  onChange={(e) => setThumbnail(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Short Description</label>
-                <textarea
-                  rows={2}
-                  value={shortDescription}
-                  onChange={(e) => setShortDescription(e.target.value)}
-                  placeholder="Key specs, processor, battery life and flagship advantages..."
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 outline-none focus:border-[#0066FF]"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowProductModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingProduct}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold shadow transition"
-                >
-                  {isSubmittingProduct ? 'Saving...' : editingProductId ? 'Update Product' : 'Publish Product'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Product Publishing Studio Modal (Multi-Image Cloudinary & URL, Reordering, Live Customer Store Preview) */}
+      <ProductStudioModal
+        isOpen={showStudioModal}
+        onClose={() => {
+          setShowStudioModal(false);
+          setSelectedEditingProduct(null);
+        }}
+        onSuccess={loadData}
+        editingProduct={selectedEditingProduct}
+      />
     </div>
   );
 };

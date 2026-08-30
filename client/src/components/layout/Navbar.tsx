@@ -16,23 +16,43 @@ import {
   Gamepad2,
   Camera,
   Flame,
-  Zap
+  Zap,
+  Store,
+  LayoutDashboard
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { CustomUserMenu } from '../auth/CustomUserMenu';
 import { MOCK_PRODUCTS } from '../../lib/mockData';
+import { api } from '../../lib/api';
 
 import logoImg from '../../assets/nexVolt-logo.png';
 
 export const Navbar: React.FC = () => {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
+  const [isMerchant, setIsMerchant] = useState(false);
   const { totalItems } = useCart();
   const { totalWishlistItems } = useWishlist();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showCategoriesMenu, setShowCategoriesMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isSignedIn || !user) {
+      setIsMerchant(false);
+      return;
+    }
+    const checkRole = async () => {
+      try {
+        const roleData = await api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress);
+        setIsMerchant(roleData?.isMerchant === true || roleData?.role === 'merchant');
+      } catch {
+        setIsMerchant(false);
+      }
+    };
+    checkRole();
+  }, [isSignedIn, user]);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const categoriesMenuRef = useRef<HTMLDivElement>(null);
@@ -83,23 +103,39 @@ export const Navbar: React.FC = () => {
     <header className="sticky top-0 z-40 w-full pt-2 sm:pt-3 pb-2 sm:pb-3 px-3 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Curvey Floating Navbar Capsule */}
-        <div className="bg-white/90 backdrop-blur-2xl border border-slate-200/80 rounded-2xl sm:rounded-full shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 px-3.5 sm:px-6 py-2.5 transition-all duration-300">
+        <div className="bg-white/50 backdrop-blur-2xl border border-white/70 rounded-2xl sm:rounded-full shadow-2xl shadow-blue-500/10 hover:shadow-blue-500/20 px-3.5 sm:px-6 py-2.5 transition-all duration-300">
           <div className="flex items-center justify-between gap-2.5 lg:gap-5">
-            {/* 1. Left: Logo */}
-            <Link to="/" className="shrink-0 flex items-center group">
-              <img
-                src={logoImg}
-                alt="NexVolt"
-                className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-102"
-              />
-            </Link>
+            {/* 1. Left: Logo & Merchant Mode Bandage Sticker */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <Link to="/" className="shrink-0 flex items-center group">
+                <img
+                  src={logoImg}
+                  alt="NexVolt"
+                  className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-102"
+                />
+              </Link>
+
+              {/* Bandage Style Sticker for Merchant Mode */}
+              {isMerchant && (
+                <Link
+                  to="/merchant/dashboard"
+                  className="relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-black text-[9px] sm:text-[11px] tracking-wider uppercase shadow-md shadow-amber-500/25 border-y border-dashed border-amber-700/50 rounded-xs -rotate-2 hover:rotate-0 hover:scale-105 transition-all duration-200 group shrink-0 select-none cursor-pointer font-poppins"
+                  title="Merchant Mode Active - Click to open Seller Dashboard"
+                >
+                  <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-r-xs pointer-events-none" />
+                  <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-900 group-hover:scale-110 transition-transform" />
+                  <span className="font-bold tracking-wide">Merchant Mode</span>
+                  <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-l-xs pointer-events-none" />
+                </Link>
+              )}
+            </div>
 
             {/* 2. Quick Access: Categories Dropdown */}
             <div className="relative hidden sm:block" ref={categoriesMenuRef}>
               <button
                 type="button"
                 onClick={() => setShowCategoriesMenu(!showCategoriesMenu)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-bold transition shadow-xs whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-bold transition shadow-xs whitespace-nowrap font-poppins ${
                   showCategoriesMenu
                     ? 'bg-slate-200/90 border-slate-300 text-slate-900'
                     : 'bg-slate-100/90 hover:bg-slate-200/80 border-slate-200 text-slate-700 hover:text-slate-900'
@@ -178,12 +214,12 @@ export const Navbar: React.FC = () => {
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}
-                  placeholder="Search laptops, smartphones, headphones, RTX GPUs..."
+                  placeholder={isMerchant ? "Search catalog products, categories, SKU..." : "Search laptops, smartphones, headphones, RTX GPUs..."}
                   className="w-full bg-slate-100/90 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-full py-2.5 pl-11 pr-26 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none transition"
                 />
                 <button
                   type="submit"
-                  className="absolute right-1.5 px-5 py-1.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition"
+                  className="absolute right-1.5 px-5 py-1.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition font-poppins cursor-pointer"
                 >
                   Search
                 </button>
@@ -220,46 +256,60 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* Right Action Icons Group */}
-            <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
-              {/* 4. Wishlist Shortcut */}
-              <Link
-                to="/wishlist"
-                className="flex flex-col items-center justify-center text-slate-700 hover:text-[#0066FF] transition px-1.5 sm:px-2 py-0.5 group relative"
-                title="Saved Wishlist"
-              >
-                <div className="relative">
-                  <Heart className="w-5 h-5 text-slate-700 group-hover:text-[#0066FF] group-hover:scale-105 transition-transform" />
-                  {isSignedIn && totalWishlistItems > 0 && (
-                    <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-rose-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
-                      {totalWishlistItems}
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+              {/* If NOT Merchant: Show Wishlist & Cart */}
+              {!isMerchant ? (
+                <>
+                  {/* 4. Wishlist Shortcut */}
+                  <Link
+                    to="/wishlist"
+                    className="flex flex-col items-center justify-center text-slate-700 hover:text-[#0066FF] transition px-1.5 sm:px-2 py-0.5 group relative"
+                    title="Saved Wishlist"
+                  >
+                    <div className="relative">
+                      <Heart className="w-5 h-5 text-slate-700 group-hover:text-[#0066FF] group-hover:scale-105 transition-transform" />
+                      {isSignedIn && totalWishlistItems > 0 && (
+                        <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-rose-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
+                          {totalWishlistItems}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-600 group-hover:text-[#0066FF] mt-0.5">
+                      Wishlist
                     </span>
-                  )}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-600 group-hover:text-[#0066FF] mt-0.5">
-                  Wishlist
-                </span>
-              </Link>
+                  </Link>
 
-              {/* 5. Clear Cart Status: Clean icon + badge + label (no background/border) */}
-              <Link
-                to="/cart"
-                className="flex flex-col items-center justify-center text-slate-700 hover:text-[#0066FF] transition px-2 py-0.5 group relative"
-                title="Shopping Bag"
-              >
-                <div className="relative">
-                  <ShoppingBag className="w-5 h-5 text-slate-700 group-hover:text-[#0066FF] group-hover:scale-105 transition-transform" />
-                  {isSignedIn && totalItems > 0 && (
-                    <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-[#0066FF] text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
-                      {totalItems}
+                  {/* 5. Clear Cart Status */}
+                  <Link
+                    to="/cart"
+                    className="flex flex-col items-center justify-center text-slate-700 hover:text-[#0066FF] transition px-2 py-0.5 group relative"
+                    title="Shopping Bag"
+                  >
+                    <div className="relative">
+                      <ShoppingBag className="w-5 h-5 text-slate-700 group-hover:text-[#0066FF] group-hover:scale-105 transition-transform" />
+                      {isSignedIn && totalItems > 0 && (
+                        <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-[#0066FF] text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs">
+                          {totalItems}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-600 group-hover:text-[#0066FF] mt-0.5">
+                      Cart
                     </span>
-                  )}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-600 group-hover:text-[#0066FF] mt-0.5">
-                  Cart
-                </span>
-              </Link>
+                  </Link>
+                </>
+              ) : (
+                /* Merchant Shortcut: Quick Dashboard Pill */
+                <Link
+                  to="/merchant/dashboard"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 hover:bg-[#0066FF] border border-blue-200 hover:border-[#0066FF] text-[#0066FF] hover:text-white text-xs font-bold transition-all shadow-xs group font-poppins"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                  <span>Dashboard</span>
+                </Link>
+              )}
 
-              {/* 6. Primary CTA */}
+              {/* 6. Primary CTA / User Dropdown */}
               <CustomUserMenu />
 
               {/* Mobile Menu Trigger */}
@@ -283,7 +333,7 @@ export const Navbar: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search electronics..."
+                placeholder={isMerchant ? "Search catalog & inventory..." : "Search electronics..."}
                 className="w-full bg-slate-100 border border-slate-200 rounded-full py-2 pl-9 pr-20 text-sm text-slate-900 outline-none"
               />
               <button

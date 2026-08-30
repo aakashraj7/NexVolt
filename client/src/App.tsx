@@ -17,7 +17,7 @@ function ClerkProviderWithRouter({ children }: { children: React.ReactNode }) {
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/"
-      signUpFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/onboarding"
     >
       {children}
     </ClerkProvider>
@@ -37,6 +37,7 @@ import { MerchantSignInPage } from './pages/MerchantSignInPage';
 import { MerchantSignUpPage } from './pages/MerchantSignUpPage';
 import { MerchantOnboardingPage } from './pages/MerchantOnboardingPage';
 import { MerchantDashboard } from './pages/MerchantDashboard';
+import { MerchantProfilePage } from './pages/MerchantProfilePage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { SSOCallbackPage } from './pages/SSOCallback';
@@ -107,11 +108,22 @@ const RoleRouteGuard: React.FC = () => {
           return;
         }
 
-        // 3. Block ALREADY REGISTERED Merchant from accessing customer sign-in/sign-up pages
-        if (isMerchantUser && (location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up'))) {
-          showToast('Merchant accounts cannot access the Customer Sign In page.', 'info');
-          navigate('/merchant/dashboard', { replace: true });
-          return;
+        // 3. Block ALREADY REGISTERED Merchant from accessing customer auth, cart, wishlist, orders, or consumer profile
+        if (isMerchantUser) {
+          if (location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up')) {
+            showToast('Merchant accounts cannot access the Customer Sign In page.', 'info');
+            navigate('/merchant/dashboard', { replace: true });
+            return;
+          }
+          if (location.pathname.startsWith('/cart') || location.pathname.startsWith('/wishlist') || location.pathname.startsWith('/orders') || location.pathname.startsWith('/checkout')) {
+            showToast('Cart, Wishlist, and Orders are exclusive to Customer accounts.', 'info');
+            navigate('/merchant/dashboard', { replace: true });
+            return;
+          }
+          if (location.pathname === '/profile') {
+            navigate('/merchant/profile', { replace: true });
+            return;
+          }
         }
       } catch (err) {
         console.warn('Role route guard check error:', err);
@@ -209,6 +221,7 @@ export function App() {
                     <Route path="/merchant/onboarding" element={<MerchantOnboardingPage />} />
                     <Route path="/merchant" element={<MerchantDashboard />} />
                     <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
+                    <Route path="/merchant/profile" element={<MerchantProfilePage />} />
                   </Routes>
                 </main>
 

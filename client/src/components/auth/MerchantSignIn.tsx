@@ -31,7 +31,8 @@ export const MerchantSignIn: React.FC<MerchantSignInProps> = ({ onSwitchMode }) 
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: `${window.location.origin}/sso-callback?portal=merchant`,
-        redirectUrlComplete: `${window.location.origin}/sso-callback?portal=merchant`
+        redirectUrlComplete: `${window.location.origin}/merchant/dashboard`,
+        continueSignUp: true
       });
     } catch (err: any) {
       console.error('Google Sign In Error:', err);

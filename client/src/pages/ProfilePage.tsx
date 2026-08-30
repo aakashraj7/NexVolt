@@ -88,10 +88,22 @@ export const ProfilePage: React.FC = () => {
       navigate('/sign-in');
       return;
     }
-    if (isLoaded && isSignedIn) {
-      fetchProfile();
+    if (isLoaded && isSignedIn && user) {
+      const verifyRole = async () => {
+        try {
+          const roleData = await api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress);
+          if (roleData?.isMerchant === true || roleData?.role === 'merchant') {
+            navigate('/merchant/dashboard?tab=settings', { replace: true });
+            return;
+          }
+        } catch (e) {
+          console.warn('Profile role check warning:', e);
+        }
+        fetchProfile();
+      };
+      verifyRole();
     }
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, user, navigate]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

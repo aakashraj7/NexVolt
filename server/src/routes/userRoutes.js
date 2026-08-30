@@ -435,8 +435,10 @@ router.post('/merchant-profile/:userId', async (req, res) => {
     const { userId } = req.params;
     const {
       storeName,
+      ownerName,
       businessType,
       category,
+      categories,
       gstin,
       businessPhone,
       supportEmail,
@@ -451,30 +453,35 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       user = new User({
         userId,
         email: (supportEmail || '').toLowerCase(),
-        fullName: storeName || '',
+        fullName: ownerName || storeName || '',
         isMerchant: true
       });
+    }
+
+    if (ownerName && ownerName.trim()) {
+      user.fullName = ownerName.trim();
     }
 
     user.isMerchant = true;
     user.role = 'merchant';
     user.merchantProfile = {
-      storeName: storeName || user.merchantProfile?.storeName || '',
-      businessType: businessType || user.merchantProfile?.businessType || '',
-      category: category || user.merchantProfile?.category || '',
-      gstin: gstin || user.merchantProfile?.gstin || '',
-      businessPhone: businessPhone || user.merchantProfile?.businessPhone || '',
-      supportEmail: supportEmail || user.merchantProfile?.supportEmail || user.email,
-      website: website || user.merchantProfile?.website || '',
+      storeName: storeName !== undefined ? storeName : (user.merchantProfile?.storeName || ''),
+      businessType: businessType !== undefined ? businessType : (user.merchantProfile?.businessType || ''),
+      category: category !== undefined ? category : (user.merchantProfile?.category || ''),
+      categories: categories !== undefined ? categories : (user.merchantProfile?.categories || (category ? [category] : [])),
+      gstin: gstin !== undefined ? gstin.trim().toUpperCase() : (user.merchantProfile?.gstin || ''),
+      businessPhone: businessPhone !== undefined ? businessPhone : (user.merchantProfile?.businessPhone || ''),
+      supportEmail: supportEmail !== undefined ? supportEmail.toLowerCase() : (user.merchantProfile?.supportEmail || user.email),
+      website: website !== undefined ? website : (user.merchantProfile?.website || ''),
       warehouses: warehouses && warehouses.length > 0 ? warehouses : (user.merchantProfile?.warehouses || []),
-      onboardingCompleted: onboardingCompleted !== undefined ? onboardingCompleted : true
+      onboardingCompleted: onboardingCompleted !== undefined ? onboardingCompleted : (user.merchantProfile?.onboardingCompleted || true)
     };
 
     await user.save();
 
     res.json({
       success: true,
-      message: 'Merchant onboarding saved successfully!',
+      message: 'Merchant profile updated successfully!',
       merchantProfile: user.merchantProfile,
       user
     });

@@ -105,6 +105,7 @@ const userSchema = new mongoose.Schema({
     storeName: { type: String, default: '' },
     businessType: { type: String, default: '' },
     category: { type: String, default: '' },
+    categories: [{ type: String }],
     gstin: { type: String, default: '' },
     businessPhone: { type: String, default: '' },
     supportEmail: { type: String, default: '' },

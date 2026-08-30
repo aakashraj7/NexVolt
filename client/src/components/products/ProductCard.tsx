@@ -16,7 +16,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const isFavorited = isInWishlist(product._id);
 
   return (
-    <div className="group bg-white rounded-2xl p-4 flex flex-col justify-between border border-slate-200 hover:border-cyan-500/50 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+    <div className="group bg-white/50 backdrop-blur-2xl rounded-3xl p-4 flex flex-col justify-between border border-white/70 hover:border-[#0066FF]/40 shadow-xl shadow-blue-500/8 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 relative overflow-hidden">
       {/* Top Badges & Wishlist Trigger */}
       <div className="relative">
         <div className="flex items-center justify-between gap-2 absolute top-2 left-2 right-2 z-10">

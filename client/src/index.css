@@ -15,9 +15,17 @@
     color: #0f172a;
   }
 
-  h1, h2, h3, h4, .font-heading {
-    font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  h1, h2, h3, h4 {
+    font-family: 'Poppins', 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
   }
+}
+
+.font-poppins {
+  font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-heading {
+  font-family: 'Poppins', 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
 }
 
 /* Smooth Keyframe Animations */

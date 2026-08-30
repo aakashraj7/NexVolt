@@ -50,7 +50,8 @@ export const CustomSignIn: React.FC<CustomSignInProps> = ({ onSwitchMode }) => {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: `${window.location.origin}/sso-callback?portal=customer`,
-        redirectUrlComplete: `${window.location.origin}/sso-callback?portal=customer`
+        redirectUrlComplete: `${window.location.origin}/`,
+        continueSignUp: true
       });
     } catch (err: any) {
       console.error('Google Sign In Error:', err);

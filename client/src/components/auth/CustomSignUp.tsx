@@ -47,7 +47,8 @@ export const CustomSignUp: React.FC<CustomSignUpProps> = ({ onSwitchMode }) => {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: `${window.location.origin}/sso-callback?portal=customer`,
-        redirectUrlComplete: `${window.location.origin}/sso-callback?portal=customer`
+        redirectUrlComplete: `${window.location.origin}/onboarding`,
+        continueSignIn: true
       });
     } catch (err: any) {
       console.error('Google Sign Up Error:', err);

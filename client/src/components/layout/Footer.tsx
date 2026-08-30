@@ -5,8 +5,8 @@ import logoImg from '../../assets/nexVolt-logo.png';
 export const Footer: React.FC = () => {
   return (
     <footer className="w-full px-3 sm:px-6 lg:px-8 mt-auto">
-      {/* Curved Top Footer Card with Visible Left, Top, and Right Borders */}
-      <div className="max-w-7xl mx-auto bg-white/85 backdrop-blur-2xl border-t border-x border-slate-200/90 rounded-t-[32px] sm:rounded-t-[44px] shadow-xl shadow-slate-900/5 p-6 sm:p-10 pb-8 transition-all duration-300">
+      {/* Curved Top Footer Card with Signature Glowing Shadow and Glassmorphism */}
+      <div className="max-w-7xl mx-auto bg-white/50 backdrop-blur-2xl border-t border-x border-white/70 rounded-t-[36px] sm:rounded-t-[48px] shadow-2xl shadow-blue-500/10 p-6 sm:p-10 pb-8 transition-all duration-300">
         {/* Main Footer Links */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 lg:gap-10 pb-8 border-b border-slate-200/80 text-slate-600 text-xs">
           {/* Brand summary */}

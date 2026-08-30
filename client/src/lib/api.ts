@@ -509,5 +509,16 @@ export const api = {
       console.warn('Backend deactivateMerchantAccount error:', err);
       throw err;
     }
+  },
+
+  async uploadImage(image: string, folder: string = 'nexvolt_products') {
+    try {
+      const res = await apiClient.post('/upload', { image, folder });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend uploadImage error:', err);
+      // Fallback returning original image string if network/server has error
+      return { success: true, url: image, isLocalFallback: true };
+    }
   }
 };

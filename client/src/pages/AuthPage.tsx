@@ -102,12 +102,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'sign-in' }) =
 
             {/* Bottom Security Trust Card */}
             <div className="pt-2">
-              <div className="p-3 sm:p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white shadow-xs flex items-center gap-3 max-w-md">
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-white/60 backdrop-blur-2xl border border-white/80 shadow-2xl shadow-blue-500/10 flex items-center gap-3 max-w-md">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0066FF] flex items-center justify-center shrink-0 border border-blue-200">
                   <Shield className="w-4 h-4 text-[#0066FF]" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Secure. Trusted. Built for You.</h4>
+                  <h4 className="text-xs font-bold text-slate-900 font-poppins">Secure. Trusted. Built for You.</h4>
                   <p className="text-[11px] text-slate-500 font-medium">Your data is safe with enterprise-grade security.</p>
                 </div>
               </div>
