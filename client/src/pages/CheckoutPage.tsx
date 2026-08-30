@@ -8,12 +8,13 @@ import {
   Lock,
   Loader2,
   PackageCheck,
-  MapPin
+  MapPin,
+  AlertTriangle
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
-import type { UserAddress } from '../types';
+import type { UserAddress, UserProfile } from '../types';
 
 export const CheckoutPage: React.FC = () => {
   const { cart, subtotal, discount, shipping, tax, totalAmount, clearCart, coupon } = useCart();
@@ -35,6 +36,7 @@ export const CheckoutPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCompleted, setOrderCompleted] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState('');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Autofill user info and load saved addresses if signed in
   useEffect(() => {
@@ -49,13 +51,18 @@ export const CheckoutPage: React.FC = () => {
             fullName: user.fullName || ''
           });
 
+          if (profile) {
+            setUserProfile(profile);
+            if (profile.phone) setPhone(profile.phone);
+          }
+
           if (profile?.addresses && profile.addresses.length > 0) {
             setSavedAddresses(profile.addresses);
             const defaultAddr = profile.addresses.find((a: UserAddress) => a.isDefault) || profile.addresses[0];
             if (defaultAddr) {
               setSelectedAddressId(defaultAddr._id || null);
               setName(defaultAddr.recipientName || user.fullName || '');
-              setPhone(defaultAddr.phone || '');
+              setPhone(defaultAddr.phone || profile.phone || '');
               setStreet(defaultAddr.street || '');
               setCity(defaultAddr.city || '');
               setState(defaultAddr.state || '');
@@ -70,6 +77,11 @@ export const CheckoutPage: React.FC = () => {
       loadUserProfile();
     }
   }, [user]);
+
+  const isGoogle = user?.externalAccounts?.some((acc: any) => acc.provider === 'google' || acc.provider === 'oauth_google');
+  const isEmailVerified = Boolean(isGoogle || userProfile?.authProvider === 'google' || userProfile?.isEmailVerified);
+  const isPhoneVerified = Boolean(userProfile?.isPhoneVerified && (userProfile?.phone || phone));
+  const isVerifiedCustomer = Boolean(isEmailVerified && isPhoneVerified);
 
   const handleSelectSavedAddress = (addr: UserAddress) => {
     setSelectedAddressId(addr._id || null);
@@ -135,6 +147,11 @@ export const CheckoutPage: React.FC = () => {
   // Handle successful order completion
   const handleCompletePayment = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isVerifiedCustomer) {
+      showToast('Account verification required: Please verify your mobile phone and email before placing your order.', 'error');
+      return;
+    }
 
     if (!name || !email || !street || !city || !pincode) {
       showToast('Please fill in all required shipping fields.', 'error');
@@ -229,6 +246,29 @@ export const CheckoutPage: React.FC = () => {
           <Lock className="w-3.5 h-3.5 text-emerald-600" /> Powered by 256-bit Razorpay Encrypted Gateway
         </p>
       </div>
+
+      {/* Verification Required Warning Banner */}
+      {!isVerifiedCustomer && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 shrink-0 border border-amber-200">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <h4 className="text-xs sm:text-sm font-bold text-amber-950">Customer Verification Required</h4>
+              <p className="text-xs text-amber-800 font-medium">
+                To place an order on NexVolt, your account must be verified. Pending: {!isEmailVerified ? 'Email Address' : ''} {!isEmailVerified && !isPhoneVerified ? 'and ' : ''} {!isPhoneVerified ? 'Mobile Phone (+91)' : ''}.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/profile"
+            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition shrink-0 whitespace-nowrap"
+          >
+            Verify in Profile →
+          </Link>
+        </div>
+      )}
 
       <form onSubmit={handleCompletePayment}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -501,10 +541,19 @@ export const CheckoutPage: React.FC = () => {
               {/* Submit Pay Button */}
               <button
                 type="submit"
-                disabled={isProcessing}
-                className="w-full py-4 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-600/20 transition duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                disabled={isProcessing || !isVerifiedCustomer}
+                className={`w-full py-4 px-4 rounded-xl font-bold text-sm shadow-lg transition duration-200 flex items-center justify-center gap-2 ${
+                  !isVerifiedCustomer
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-not-allowed opacity-90 shadow-amber-500/20'
+                    : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20 cursor-pointer'
+                }`}
               >
-                {isProcessing ? (
+                {!isVerifiedCustomer ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Verification Required to Pay (Verify in Profile)</span>
+                  </>
+                ) : isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Processing Payment...</span>

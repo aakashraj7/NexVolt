@@ -11,10 +11,12 @@ import {
   Briefcase,
   Plus,
   Trash2,
-  ShieldCheck,
   Globe,
   Mail,
-  Warehouse
+  Warehouse,
+  User,
+  Calendar,
+  Home
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../lib/api';
@@ -43,6 +45,15 @@ export const MerchantOnboardingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savingPhase, setSavingPhase] = useState<'saving' | 'success' | null>(null);
+
+  // Merchant Personal Details
+  const [ownerName, setOwnerName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | 'prefer_not_to_say' | ''>('');
+  const [residentialStreet, setResidentialStreet] = useState('');
+  const [residentialCity, setResidentialCity] = useState('');
+  const [residentialState, setResidentialState] = useState('Tamil Nadu');
+  const [residentialPostalCode, setResidentialPostalCode] = useState('');
 
   // Step 1: Store & Brand Profile
   const [storeName, setStoreName] = useState('');
@@ -125,6 +136,23 @@ export const MerchantOnboardingPage: React.FC = () => {
               isDefault: w.isDefault || idx === 0
             })));
           }
+        }
+
+        if (data?.user) {
+          if (data.user.fullName) setOwnerName(data.user.fullName);
+          if (data.user.dateOfBirth) setDateOfBirth(data.user.dateOfBirth);
+          if (data.user.gender) setGender(data.user.gender);
+          if (data.user.addresses && data.user.addresses.length > 0) {
+            const a = data.user.addresses[0];
+            if (a.street) setResidentialStreet(a.street);
+            if (a.city) setResidentialCity(a.city);
+            if (a.state) setResidentialState(a.state);
+            if (a.postalCode) setResidentialPostalCode(a.postalCode);
+          }
+        }
+
+        if (!ownerName && user.fullName) {
+          setOwnerName(user.fullName);
         }
 
         if (!supportEmail) {
@@ -290,7 +318,17 @@ export const MerchantOnboardingPage: React.FC = () => {
 
       const payload = {
         storeName: storeName.trim(),
-        ownerName: user.fullName || storeName.trim(),
+        ownerName: ownerName.trim() || user.fullName || storeName.trim(),
+        fullName: ownerName.trim() || user.fullName || storeName.trim(),
+        gender,
+        dateOfBirth,
+        personalAddress: residentialStreet.trim() ? {
+          street: residentialStreet.trim(),
+          city: residentialCity.trim(),
+          state: residentialState,
+          postalCode: residentialPostalCode.trim(),
+          country: 'India'
+        } : undefined,
         businessType,
         category,
         gstin: gstin.trim().toUpperCase(),
@@ -493,13 +531,14 @@ export const MerchantOnboardingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* STEP 1: Store & Brand Profile */}
+        {/* STEP 1: Store & Owner Personal Profile */}
         {currentStep === 1 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Brand & Owner Name */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
                     Store / Brand Name *
                   </label>
                   <div className="relative group">
@@ -516,36 +555,62 @@ export const MerchantOnboardingPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Business Classification *
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                    Owner Legal Full Name *
                   </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {[
-                      'Authorized Distributor',
-                      'Direct Brand',
-                      'Certified Retailer',
-                      'Tech Startup'
-                    ].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setBusinessType(type)}
-                        className={`py-3 px-3.5 rounded-2xl border text-xs font-bold transition-all duration-200 active:scale-95 flex items-center justify-center text-center ${
-                          businessType === type
-                            ? 'border-[#0066FF] bg-blue-50 text-[#0066FF] ring-2 ring-[#0066FF]/20 shadow-md scale-[1.02]'
-                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  <div className="relative group">
+                    <User className="w-4 h-4 text-slate-400 group-focus-within:text-[#0066FF] absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors" />
+                    <input
+                      type="text"
+                      required
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
+                      placeholder="e.g. Rajesh Kumar"
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-3 pl-11 pr-4 text-slate-900 text-xs outline-none transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                      Date of Birth
+                    </label>
+                    <div className="relative group">
+                      <Calendar className="w-4 h-4 text-slate-400 group-focus-within:text-[#0066FF] absolute left-3 top-1/2 -translate-y-1/2 transition-colors" />
+                      <input
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-2.5 pl-9 pr-2 text-slate-900 text-xs outline-none transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                      Gender
+                    </label>
+                    <select
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-2.5 px-3 text-slate-900 text-xs font-semibold outline-none transition-all duration-200 cursor-pointer"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
+              {/* Right Column: Classification & Category */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
                     Primary Product Category *
                   </label>
                   <div className="relative">
@@ -564,7 +629,34 @@ export const MerchantOnboardingPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                    Business Classification *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      'Authorized Distributor',
+                      'Direct Brand',
+                      'Certified Retailer',
+                      'Tech Startup'
+                    ].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setBusinessType(type)}
+                        className={`py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all duration-200 active:scale-95 flex items-center justify-center text-center ${
+                          businessType === type
+                            ? 'border-[#0066FF] bg-blue-50 text-[#0066FF] ring-2 ring-[#0066FF]/20 shadow-md scale-[1.02]'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
                     GSTIN / Tax Identification (Optional)
                   </label>
                   <input
@@ -575,9 +667,6 @@ export const MerchantOnboardingPage: React.FC = () => {
                     placeholder="22AAAAA0000A1Z5"
                     className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-3 px-3.5 text-slate-900 font-mono text-xs tracking-wider outline-none transition-all duration-200"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
-                    Verified GSTIN accounts receive instant verified seller badges and automated B2B invoicing.
-                  </p>
                 </div>
               </div>
             </div>
@@ -586,22 +675,27 @@ export const MerchantOnboardingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-95 transition-all duration-200 flex items-center gap-2"
+                className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-95 transition-all duration-200 flex items-center gap-2 cursor-pointer font-poppins"
               >
-                <span>Continue to Business Contact</span>
+                <span>Continue to Business Contact & Address</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 2: Business Contact & Authenticity */}
+        {/* STEP 2: Business Contact & Residential Address */}
         {currentStep === 2 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Business Communications */}
               <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-poppins">Business Communications</h3>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
                     Business Phone Number *
                   </label>
                   <div className="relative flex items-center group">
@@ -618,13 +712,10 @@ export const MerchantOnboardingPage: React.FC = () => {
                       className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-3 pl-16 pr-4 text-slate-900 font-mono tracking-wider text-sm outline-none transition-all duration-200"
                     />
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
-                    10-digit Indian phone number used for courier pickup coordination.
-                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
                     Customer Support Email *
                   </label>
                   <div className="relative group">
@@ -641,7 +732,7 @@ export const MerchantOnboardingPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
                     Official Website / Catalog Link (Optional)
                   </label>
                   <div className="relative group">
@@ -657,17 +748,56 @@ export const MerchantOnboardingPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-5 sm:p-6 rounded-2xl bg-slate-50/80 border border-slate-200 text-xs text-slate-600 space-y-3 hover:border-slate-300 transition-all duration-200">
-                <p className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#0066FF]" />
-                  <span>Merchant Verification Standards</span>
-                </p>
-                <ul className="space-y-2 text-slate-600 font-medium">
-                  <li className="flex items-center gap-2 text-slate-700">✓ Direct integration with express logistics couriers</li>
-                  <li className="flex items-center gap-2 text-slate-700">✓ Zero listing fees during the initial 90-day onboarding period</li>
-                  <li className="flex items-center gap-2 text-slate-700">✓ Fast automated payouts and settlement reports</li>
-                  <li className="flex items-center gap-2 text-slate-700">✓ Verified merchant badge for high conversion rates</li>
-                </ul>
+              {/* Right Column: Personal Residential Address */}
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-poppins">Merchant Residential Address</h3>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                    Flat / House No. / Street Address
+                  </label>
+                  <div className="relative group">
+                    <Home className="w-4 h-4 text-slate-400 group-focus-within:text-[#0066FF] absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors" />
+                    <input
+                      type="text"
+                      value={residentialStreet}
+                      onChange={(e) => setResidentialStreet(e.target.value)}
+                      placeholder="e.g. 42, Tech Park Enclave"
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-3 pl-11 pr-4 text-slate-900 text-xs outline-none transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={residentialCity}
+                      onChange={(e) => setResidentialCity(e.target.value)}
+                      placeholder="e.g. Chennai"
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-3 px-3.5 text-slate-900 text-xs outline-none transition-all duration-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 font-poppins">
+                      Postal PIN Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={residentialPostalCode}
+                      onChange={(e) => setResidentialPostalCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="e.g. 600001"
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-xl py-3 px-3.5 text-slate-900 font-mono text-xs outline-none transition-all duration-200"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

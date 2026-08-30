@@ -15,7 +15,6 @@ import {
   Layers,
   Tag,
   IndianRupee,
-  Zap,
   ShoppingBag
 } from 'lucide-react';
 import { api } from '../../lib/api';

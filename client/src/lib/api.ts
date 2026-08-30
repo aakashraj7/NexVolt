@@ -454,6 +454,46 @@ export const api = {
     }
   },
 
+  async sendPhoneOtp(userId: string, phone: string) {
+    try {
+      const res = await apiClient.post('/users/send-phone-otp', { userId, phone });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend sendPhoneOtp error:', err);
+      throw err;
+    }
+  },
+
+  async verifyPhoneOtp(userId: string, phone: string, otp: string) {
+    try {
+      const res = await apiClient.post('/users/verify-phone-otp', { userId, phone, otp });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend verifyPhoneOtp error:', err);
+      throw err;
+    }
+  },
+
+  async sendEmailOtp(userId: string, email: string) {
+    try {
+      const res = await apiClient.post('/users/send-email-otp', { userId, email });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend sendEmailOtp error:', err);
+      throw err;
+    }
+  },
+
+  async verifyEmailOtp(userId: string, otp: string) {
+    try {
+      const res = await apiClient.post('/users/verify-email-otp', { userId, otp });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Backend verifyEmailOtp error:', err);
+      throw err;
+    }
+  },
+
   async checkPhoneAvailability(phone: string, userId?: string) {
     try {
       const res = await apiClient.get('/users/check-phone', { params: { phone, userId } });

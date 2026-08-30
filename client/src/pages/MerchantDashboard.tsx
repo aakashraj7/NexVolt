@@ -169,7 +169,7 @@ export const MerchantDashboard: React.FC = () => {
             className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 hover:text-[#0066FF] border border-slate-300 hover:border-[#0066FF] font-bold text-xs shadow-xs transition flex items-center gap-2 font-poppins"
           >
             <Settings className="w-4 h-4 text-slate-500" />
-            <span>Store Profile & Settings</span>
+            <span>Personal & Store Settings</span>
           </Link>
 
           <button

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ShoppingBag, Heart, Zap } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Zap, Check, Trash2 } from 'lucide-react';
 import type { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -10,24 +10,20 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { addToCart } = useCart();
+  const { addToCart, removeFromCart, isInCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   const isFavorited = isInWishlist(product._id);
+  const itemInCart = isInCart(product._id);
 
   return (
-    <div className="group bg-white/50 backdrop-blur-2xl rounded-3xl p-4 flex flex-col justify-between border border-white/70 hover:border-[#0066FF]/40 shadow-xl shadow-blue-500/8 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 relative overflow-hidden">
+    <div className="group bg-white/50 backdrop-blur-2xl rounded-3xl p-4 flex flex-col justify-between border border-white/70 hover:border-[#0066FF]/40 shadow-xl shadow-blue-500/8 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 relative overflow-hidden font-poppins">
       {/* Top Badges & Wishlist Trigger */}
       <div className="relative">
         <div className="flex items-center justify-between gap-2 absolute top-2 left-2 right-2 z-10">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {product.badge && (
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-50 border border-cyan-200 text-cyan-700 shadow-sm">
-                {product.badge}
-              </span>
-            )}
             {product.discountPercent > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-sm">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-xs tracking-wider uppercase font-mono">
                 {product.discountPercent}% OFF
               </span>
             )}
@@ -107,17 +103,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           </div>
 
-          {/* Quick Add To Cart Button */}
+          {/* Quick Add / Remove Cart Toggle Button */}
           <button
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              addToCart(product, 1);
+              e.stopPropagation();
+              if (itemInCart) {
+                removeFromCart(product._id);
+              } else {
+                addToCart(product, 1);
+              }
             }}
-            className="p-2.5 rounded-xl bg-slate-100 hover:bg-cyan-600 text-slate-700 hover:text-white border border-slate-200 hover:border-cyan-600 shadow-sm transition-all duration-200 group-hover:bg-cyan-600 group-hover:text-white group-hover:border-cyan-600"
-            title="Add to Shopping Cart"
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 group/btn ${
+              itemInCart
+                ? 'bg-gradient-to-tr from-[#0066FF] to-[#0052CC] hover:from-rose-600 hover:to-rose-700 text-white shadow-md shadow-blue-500/25 hover:shadow-rose-500/25 border border-blue-500/20'
+                : 'bg-slate-100/90 hover:bg-[#0066FF] text-slate-700 hover:text-white border border-slate-200/90 hover:border-[#0066FF] shadow-2xs hover:shadow-md hover:shadow-blue-500/20'
+            }`}
+            title={itemInCart ? 'In Cart • Click to remove' : 'Add to Shopping Cart'}
           >
-            <ShoppingBag className="w-4 h-4" />
+            {itemInCart ? (
+              <>
+                <Check className="w-4 h-4 stroke-[2.5] group-hover/btn:hidden" />
+                <Trash2 className="w-4 h-4 hidden group-hover/btn:block" />
+              </>
+            ) : (
+              <ShoppingCart className="w-4 h-4 transition-transform group-hover/btn:scale-110" />
+            )}
           </button>
         </div>
       </div>

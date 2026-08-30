@@ -130,6 +130,9 @@ export interface UserProfile {
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | '';
   dateOfBirth?: string;
   authProvider?: string;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  isVerifiedCustomer?: boolean;
   hasPassword?: boolean;
   addresses: UserAddress[];
   onboardingCompleted?: boolean;

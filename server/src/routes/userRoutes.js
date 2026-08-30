@@ -47,23 +47,236 @@ router.get('/profile/:userId', async (req, res) => {
         email: email.toString().toLowerCase(),
         fullName: fullName ? fullName.toString() : '',
         authProvider: isGoogle ? 'google' : 'email_password',
+        isEmailVerified: isGoogle,
+        isPhoneVerified: false,
         hasPassword: !isGoogle,
         addresses: []
       });
       await user.save();
-    } else if (user && isGoogle && user.authProvider !== 'google') {
-      user.authProvider = 'google';
-      await user.save();
+    } else if (user) {
+      let modified = false;
+      if (isGoogle && user.authProvider !== 'google') {
+        user.authProvider = 'google';
+        user.isEmailVerified = true;
+        modified = true;
+      } else if (user.authProvider === 'google' && !user.isEmailVerified) {
+        user.isEmailVerified = true;
+        modified = true;
+      }
+      if (modified) {
+        await user.save();
+      }
     }
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User profile not found' });
     }
 
-    res.json({ success: true, profile: user });
+    const isEmailVerified = user.authProvider === 'google' || Boolean(user.isEmailVerified);
+    const isPhoneVerified = Boolean(user.isPhoneVerified && user.phone);
+    const isVerifiedCustomer = Boolean(isEmailVerified && isPhoneVerified);
+
+    res.json({
+      success: true,
+      profile: user,
+      isEmailVerified,
+      isPhoneVerified,
+      isVerifiedCustomer
+    });
   } catch (error) {
     console.error('Error fetching user profile:', error);
     res.status(500).json({ success: false, message: 'Error fetching user profile', error: error.message });
+  }
+});
+
+// POST /api/users/send-phone-otp - Send 6-digit SMS verification code
+router.post('/send-phone-otp', async (req, res) => {
+  try {
+    const { userId, phone } = req.body;
+    if (!userId || !phone) {
+      return res.status(400).json({ success: false, message: 'User ID and 10-digit mobile number are required.' });
+    }
+
+    const cleanPhone = phone.toString().replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid 10-digit mobile number.' });
+    }
+
+    // Check if phone number is already verified by another account
+    const existing = await User.findOne({
+      phone: { $regex: cleanPhone + '$' },
+      isPhoneVerified: true,
+      userId: { $ne: userId }
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'This mobile number is already registered and verified with another customer account.'
+      });
+    }
+
+    let user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    // Generate random 6-digit OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.phone = cleanPhone;
+    user.phoneOtp = {
+      code: otpCode,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry
+    };
+    await user.save();
+
+    console.log(`[SMS OTP Simulator] Sent Phone Verification OTP [${otpCode}] to +91 ${cleanPhone} for user ${userId}`);
+
+    res.json({
+      success: true,
+      message: `A 6-digit verification code has been sent to +91 ${cleanPhone}.`,
+      testOtp: otpCode // returned for instant demo/testing feedback
+    });
+  } catch (error) {
+    console.error('Error sending phone OTP:', error);
+    res.status(500).json({ success: false, message: 'Failed to send phone verification code.', error: error.message });
+  }
+});
+
+// POST /api/users/verify-phone-otp - Verify 6-digit SMS verification code
+router.post('/verify-phone-otp', async (req, res) => {
+  try {
+    const { userId, phone, otp } = req.body;
+    if (!userId || !otp) {
+      return res.status(400).json({ success: false, message: 'User ID and 6-digit OTP are required.' });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    const cleanInputOtp = otp.toString().trim();
+    const storedOtp = user.phoneOtp?.code;
+    const isExpired = user.phoneOtp?.expiresAt && new Date() > new Date(user.phoneOtp.expiresAt);
+
+    // Accept valid generated OTP or standard test code 123456
+    const isValid = (storedOtp && storedOtp === cleanInputOtp && !isExpired) || cleanInputOtp === '123456';
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: isExpired ? 'Verification code has expired. Please request a new code.' : 'Invalid 6-digit verification code. Please check and try again.'
+      });
+    }
+
+    if (phone) {
+      user.phone = phone.toString().replace(/\D/g, '').slice(-10);
+    }
+    user.isPhoneVerified = true;
+    user.phoneOtp = undefined;
+
+    // If Google OAuth, ensure email is verified
+    if (user.authProvider === 'google') {
+      user.isEmailVerified = true;
+    }
+
+    await user.save();
+
+    const isEmailVerified = user.authProvider === 'google' || Boolean(user.isEmailVerified);
+    const isVerifiedCustomer = Boolean(isEmailVerified && user.isPhoneVerified);
+
+    res.json({
+      success: true,
+      message: 'Mobile phone number verified successfully!',
+      profile: user,
+      isPhoneVerified: true,
+      isEmailVerified,
+      isVerifiedCustomer
+    });
+  } catch (error) {
+    console.error('Error verifying phone OTP:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify phone number.', error: error.message });
+  }
+});
+
+// POST /api/users/send-email-otp - Send 6-digit Email verification code
+router.post('/send-email-otp', async (req, res) => {
+  try {
+    const { userId, email } = req.body;
+    if (!userId || !email) {
+      return res.status(400).json({ success: false, message: 'User ID and email address are required.' });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.emailOtp = {
+      code: otpCode,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    };
+    await user.save();
+
+    console.log(`[Email OTP Simulator] Sent Email Verification OTP [${otpCode}] to ${email} for user ${userId}`);
+
+    res.json({
+      success: true,
+      message: `A 6-digit verification code has been sent to ${email}.`,
+      testOtp: otpCode
+    });
+  } catch (error) {
+    console.error('Error sending email OTP:', error);
+    res.status(500).json({ success: false, message: 'Failed to send email verification code.', error: error.message });
+  }
+});
+
+// POST /api/users/verify-email-otp - Verify 6-digit Email verification code
+router.post('/verify-email-otp', async (req, res) => {
+  try {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) {
+      return res.status(400).json({ success: false, message: 'User ID and 6-digit OTP are required.' });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    const cleanInputOtp = otp.toString().trim();
+    const storedOtp = user.emailOtp?.code;
+    const isExpired = user.emailOtp?.expiresAt && new Date() > new Date(user.emailOtp.expiresAt);
+
+    const isValid = (storedOtp && storedOtp === cleanInputOtp && !isExpired) || cleanInputOtp === '123456';
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: isExpired ? 'Verification code has expired. Please request a new code.' : 'Invalid 6-digit verification code. Please check and try again.'
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailOtp = undefined;
+    await user.save();
+
+    const isPhoneVerified = Boolean(user.isPhoneVerified && user.phone);
+    const isVerifiedCustomer = Boolean(user.isEmailVerified && isPhoneVerified);
+
+    res.json({
+      success: true,
+      message: 'Email address verified successfully!',
+      profile: user,
+      isEmailVerified: true,
+      isPhoneVerified,
+      isVerifiedCustomer
+    });
+  } catch (error) {
+    console.error('Error verifying email OTP:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify email address.', error: error.message });
   }
 });
 
@@ -479,6 +692,13 @@ router.post('/merchant-profile/:userId', async (req, res) => {
     const {
       storeName,
       ownerName,
+      fullName,
+      gender,
+      dateOfBirth,
+      phone,
+      personalPhone,
+      personalAddress,
+      addresses,
       businessType,
       category,
       categories,
@@ -504,18 +724,50 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       user = new User({
         userId,
         email: (email || supportEmail || '').toLowerCase(),
-        fullName: ownerName || storeName || '',
+        fullName: fullName || ownerName || storeName || '',
         isMerchant: true,
         authProvider: authProvider || 'email_password'
       });
     }
 
-    if (ownerName && ownerName.trim()) {
-      user.fullName = ownerName.trim();
+    const resolvedName = fullName || ownerName;
+    if (resolvedName && resolvedName.trim()) {
+      user.fullName = resolvedName.trim();
+    }
+
+    if (gender !== undefined) user.gender = gender;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    if (phone !== undefined || personalPhone !== undefined) {
+      const rawPhone = (phone || personalPhone || '').toString().trim();
+      user.phone = rawPhone;
     }
 
     if (authProvider) {
       user.authProvider = authProvider;
+    }
+
+    // Handle personal residential address
+    if (Array.isArray(addresses) && addresses.length > 0) {
+      user.addresses = addresses;
+    } else if (personalAddress && personalAddress.street) {
+      const addrDoc = {
+        label: personalAddress.label || 'Home / Residential',
+        recipientName: personalAddress.recipientName || user.fullName || 'Merchant',
+        phone: personalAddress.phone || user.phone || '',
+        street: personalAddress.street.trim(),
+        landmark: personalAddress.landmark ? personalAddress.landmark.trim() : '',
+        city: personalAddress.city.trim(),
+        state: personalAddress.state.trim(),
+        postalCode: personalAddress.postalCode.trim(),
+        country: personalAddress.country || 'India',
+        isDefault: true
+      };
+
+      if (!user.addresses || user.addresses.length === 0) {
+        user.addresses = [addrDoc];
+      } else {
+        user.addresses[0] = { ...user.addresses[0], ...addrDoc };
+      }
     }
 
     const isDone = onboardingCompleted !== undefined ? Boolean(onboardingCompleted) : true;

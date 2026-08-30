@@ -1,6 +1,7 @@
 import express from 'express';
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
@@ -22,6 +23,29 @@ router.post('/initiate', async (req, res) => {
 
     if (!userId || !items || !items.length || !customerDetails) {
       return res.status(400).json({ success: false, message: 'Missing required order details' });
+    }
+
+    // Verify Customer Verification Status: Must have verified email and phone
+    const user = await User.findOne({
+      $or: [
+        { userId },
+        ...(customerDetails.email ? [{ email: customerDetails.email.toLowerCase() }] : [])
+      ]
+    });
+
+    if (user) {
+      const isEmailVerified = user.authProvider === 'google' || Boolean(user.isEmailVerified);
+      const isPhoneVerified = Boolean(user.isPhoneVerified);
+
+      if (!isEmailVerified || !isPhoneVerified) {
+        return res.status(403).json({
+          success: false,
+          isVerificationRequired: true,
+          isEmailVerified,
+          isPhoneVerified,
+          message: 'Account verification required. Both your Email and Mobile Phone must be verified before placing an order.'
+        });
+      }
     }
 
     const orderId = 'NV-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000);

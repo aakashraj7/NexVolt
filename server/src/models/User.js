@@ -79,6 +79,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'email_password' // 'google' | 'email_password'
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  isPhoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  phoneOtp: {
+    code: { type: String, default: '' },
+    expiresAt: { type: Date }
+  },
+  emailOtp: {
+    code: { type: String, default: '' },
+    expiresAt: { type: Date }
+  },
   hasPassword: {
     type: Boolean,
     default: false

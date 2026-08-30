@@ -4,19 +4,28 @@ import { api } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 
 interface PasswordManagerProps {
-  userId: string;
-  email: string;
-  hasPassword: boolean;
-  onPasswordUpdated: () => void;
+  userId?: string;
+  email?: string;
+  hasPassword?: boolean;
+  userDoc?: any;
+  onRefresh?: () => void | Promise<void>;
+  onPasswordUpdated?: () => void;
 }
 
 export const PasswordManager: React.FC<PasswordManagerProps> = ({
   userId,
   email,
   hasPassword,
+  userDoc,
+  onRefresh,
   onPasswordUpdated
 }) => {
   const { showToast } = useToast();
+
+  const resolvedUserId = userId || userDoc?.userId || '';
+  const resolvedEmail = email || userDoc?.email || '';
+  const resolvedHasPassword = hasPassword !== undefined ? hasPassword : Boolean(userDoc?.hasPassword);
+  const handleUpdated = onPasswordUpdated || onRefresh || (() => {});
 
   const [step, setStep] = useState<'initial' | 'verify'>('initial');
   const [code, setCode] = useState('');
@@ -28,10 +37,10 @@ export const PasswordManager: React.FC<PasswordManagerProps> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
 
-  const actionType = hasPassword ? 'reset' : 'create';
+  const actionType = resolvedHasPassword ? 'reset' : 'create';
 
   const handleSendCode = async () => {
-    if (!email) {
+    if (!resolvedEmail) {
       setErrorMessage('User email is required.');
       return;
     }
@@ -41,12 +50,12 @@ export const PasswordManager: React.FC<PasswordManagerProps> = ({
     setSuccessMessage('');
 
     try {
-      const res = await api.sendPasswordVerificationCode(email, actionType);
+      const res = await api.sendPasswordVerificationCode(resolvedEmail, actionType);
       if (res.devCode) {
         setDevCode(res.devCode);
       }
       setStep('verify');
-      showToast(`Verification code sent to ${email}`, 'info');
+      showToast(`Verification code sent to ${resolvedEmail}`, 'info');
     } catch (err: any) {
       setErrorMessage(err.response?.data?.message || 'Failed to send verification code. Please try again.');
     } finally {
@@ -76,8 +85,8 @@ export const PasswordManager: React.FC<PasswordManagerProps> = ({
 
     try {
       const res = await api.verifyAndSetPassword({
-        userId,
-        email,
+        userId: resolvedUserId,
+        email: resolvedEmail,
         code: code.trim(),
         newPassword
       });
@@ -88,7 +97,7 @@ export const PasswordManager: React.FC<PasswordManagerProps> = ({
       setNewPassword('');
       setConfirmPassword('');
       setStep('initial');
-      onPasswordUpdated();
+      handleUpdated();
     } catch (err: any) {
       setErrorMessage(err.response?.data?.message || 'Verification failed. Please check the code.');
     } finally {
