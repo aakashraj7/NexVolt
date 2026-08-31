@@ -97,13 +97,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isMerchantVie
         </Link>
 
         {/* Rating stars & review count */}
-        <div className="flex items-center gap-1.5 mb-3">
-          <div className="flex items-center text-amber-500">
-            <Star className="w-3.5 h-3.5 fill-amber-400" />
-            <span className="text-xs font-bold ml-1 text-slate-700">{product.rating}</span>
-          </div>
-          <span className="text-slate-300 text-xs">•</span>
-          <span className="text-[11px] text-slate-500">({product.numReviews.toLocaleString()} reviews)</span>
+        <div className="flex items-center gap-1.5 mb-3 text-xs">
+          {(product.reviews?.length || 0) > 0 ? (
+            <>
+              <div className="flex items-center text-amber-500">
+                <Star className="w-3.5 h-3.5 fill-amber-400" />
+                <span className="text-xs font-bold ml-1 text-slate-700">
+                  {(product.reviews!.reduce((acc, r) => acc + r.rating, 0) / product.reviews!.length).toFixed(1)}
+                </span>
+              </div>
+              <span className="text-slate-300 text-xs">•</span>
+              <span className="text-[11px] text-slate-500">
+                ({product.reviews!.length} {product.reviews!.length === 1 ? 'review' : 'reviews'})
+              </span>
+            </>
+          ) : (
+            <span className="text-[11px] text-slate-400 font-medium">No reviews yet</span>
+          )}
         </div>
 
         {/* Price Row */}

@@ -144,6 +144,32 @@ export const api = {
     return MOCK_CATEGORIES;
   },
 
+  async canUserReviewProduct(productIdOrSlug: string, userId: string): Promise<{
+    canReview: boolean;
+    hasPurchased: boolean;
+    isPendingDelivery?: boolean;
+    pendingOrderStatus?: string;
+    pendingOrderId?: string;
+    orderId?: string;
+    orderCount?: number;
+    isMultipleOrders?: boolean;
+  }> {
+    try {
+      const res = await apiClient.get(`/products/${productIdOrSlug}/can-review`, { params: { userId } });
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Error checking user review status:', err);
+    }
+    return { canReview: false, hasPurchased: false, isPendingDelivery: false, orderCount: 0, isMultipleOrders: false };
+  },
+
+  async submitProductReview(productIdOrSlug: string, payload: { userId: string; userName: string; rating: number; comment: string }) {
+    const res = await apiClient.post(`/products/${productIdOrSlug}/reviews`, payload);
+    return res.data;
+  },
+
   // Cart API
   async getCart(userId: string) {
     try {

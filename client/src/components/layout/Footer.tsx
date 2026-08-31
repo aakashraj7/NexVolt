@@ -220,11 +220,10 @@ export const Footer: React.FC = () => {
   const currentPolicyData = activePolicy ? POLICIES[activePolicy] : null;
 
   return (
-    <footer className="w-full px-3 sm:px-6 lg:px-8 mt-auto font-poppins">
-      {/* Curved Top Footer Card with Signature Glowing Shadow and Glassmorphism */}
-      <div className="max-w-7xl mx-auto bg-white/50 backdrop-blur-2xl border-t border-x border-white/70 rounded-t-[36px] sm:rounded-t-[48px] shadow-2xl shadow-blue-500/10 p-6 sm:p-10 pb-8 transition-all duration-300">
+    <footer className="w-full bg-white border-t border-slate-200/80 mt-auto font-poppins pt-12 pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Footer Links */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 lg:gap-10 pb-8 border-b border-slate-200/80 text-slate-600 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 lg:gap-10 pb-8 border-b border-slate-100 text-slate-600 text-xs">
           {/* Brand summary */}
           <div className="md:col-span-2 space-y-3.5">
             <Link to="/" className="inline-block group">
@@ -234,7 +233,7 @@ export const Footer: React.FC = () => {
                 className="h-9 sm:h-11 w-auto object-contain transition-transform group-hover:scale-102"
               />
             </Link>
-            <p className="text-slate-600 text-xs leading-relaxed max-w-sm font-medium">
+            <p className="text-slate-500 text-xs leading-relaxed max-w-sm font-medium">
               NexVolt is India's premier destination for high-performance flagship smartphones, pro creator workstations, audiophile sound, and next-gen smart tech with certified manufacturer warranty and express delivery.
             </p>
           </div>

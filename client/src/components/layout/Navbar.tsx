@@ -140,27 +140,16 @@ export const Navbar: React.FC = () => {
 
               {/* Bandage Style Sticker for Merchant Mode */}
               {isMerchant && (
-                <div className="flex items-center gap-2">
-                  <Link
-                    to="/merchant/dashboard"
-                    className="relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-black text-[9px] sm:text-[11px] tracking-wider uppercase shadow-md shadow-amber-500/25 border-y border-dashed border-amber-700/50 rounded-xs -rotate-2 hover:rotate-0 hover:scale-105 transition-all duration-200 group shrink-0 select-none cursor-pointer font-poppins"
-                    title="Merchant Mode Active - Click to open Seller Dashboard"
-                  >
-                    <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-r-xs pointer-events-none" />
-                    <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-900 group-hover:scale-110 transition-transform" />
-                    <span className="font-bold tracking-wide">Merchant Mode</span>
-                    <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-l-xs pointer-events-none" />
-                  </Link>
-
-                  <Link
-                    to="/merchant/storefront"
-                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition shadow-xs font-poppins shrink-0"
-                    title="Preview your live store catalog as customers see it"
-                  >
-                    <Eye className="w-3.5 h-3.5 text-slate-600" />
-                    <span>View Live Store</span>
-                  </Link>
-                </div>
+                <Link
+                  to="/merchant/dashboard"
+                  className="relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-black text-[9px] sm:text-[11px] tracking-wider uppercase shadow-md shadow-amber-500/25 border-y border-dashed border-amber-700/50 rounded-xs -rotate-2 hover:rotate-0 hover:scale-105 transition-all duration-200 group shrink-0 select-none cursor-pointer font-poppins"
+                  title="Merchant Mode Active - Click to open Seller Dashboard"
+                >
+                  <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-r-xs pointer-events-none" />
+                  <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-900 group-hover:scale-110 transition-transform" />
+                  <span className="font-bold tracking-wide">Merchant Mode</span>
+                  <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-l-xs pointer-events-none" />
+                </Link>
               )}
             </div>
 

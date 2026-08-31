@@ -1,5 +1,6 @@
 import express from 'express';
 import Product from '../models/Product.js';
+import Order from '../models/Order.js';
 
 const router = express.Router();
 
@@ -163,25 +164,128 @@ router.get('/:idOrSlug', async (req, res) => {
   }
 });
 
-// POST /api/products/:id/reviews - Add customer review
+// GET /api/products/:id/can-review - Check if user has purchased the item and is eligible to review
+router.get('/:id/can-review', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.json({ canReview: false, reason: 'unauthenticated' });
+    }
+
+    const product = await Product.findOne({
+      $or: [
+        ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+        { slug: id }
+      ]
+    });
+
+    if (!product) {
+      return res.json({ canReview: false, reason: 'product_not_found' });
+    }
+
+    const orders = await Order.find({
+      userId,
+      $or: [
+        { 'items.product': product._id },
+        { 'items.title': product.title }
+      ],
+      paymentStatus: { $in: ['paid', 'confirmed', 'delivered', 'shipped', 'in-transit', 'packed'] }
+    });
+
+    const deliveredOrders = orders.filter(
+      o => o.orderStatus?.toLowerCase() === 'delivered' || o.paymentStatus?.toLowerCase() === 'delivered'
+    );
+    const pendingOrders = orders.filter(
+      o => o.orderStatus?.toLowerCase() !== 'delivered' && o.paymentStatus?.toLowerCase() !== 'delivered'
+    );
+
+    const canReview = deliveredOrders.length > 0;
+    const isPendingDelivery = !canReview && pendingOrders.length > 0;
+    const deliveredCount = deliveredOrders.length;
+
+    res.json({
+      success: true,
+      canReview,
+      hasPurchased: orders.length > 0,
+      isPendingDelivery,
+      pendingOrderStatus: pendingOrders[0]?.orderStatus || 'Confirmed',
+      pendingOrderId: pendingOrders[0]?.orderId || null,
+      orderCount: deliveredCount,
+      orderId: deliveredCount === 1 ? deliveredOrders[0].orderId : null,
+      isMultipleOrders: deliveredCount > 1
+    });
+  } catch (err) {
+    console.error('Error checking review eligibility:', err);
+    res.json({ success: false, canReview: false });
+  }
+});
+
+// POST /api/products/:id/reviews - Add customer review (Only Verified Buyers With Delivered Orders)
 router.post('/:id/reviews', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userName, rating, comment } = req.body;
+    const { userId, userName, rating, comment } = req.body;
 
     if (!userName || !rating || !comment) {
       return res.status(400).json({ success: false, message: 'Missing required review fields' });
     }
 
-    const product = await Product.findById(id);
+    const product = await Product.findOne({
+      $or: [
+        ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+        { slug: id }
+      ]
+    });
+
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    // Verify buyer purchase
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please sign in to submit a verified buyer review.'
+      });
+    }
+
+    const matchingOrders = await Order.find({
+      userId,
+      $or: [
+        { 'items.product': product._id },
+        { 'items.title': product.title }
+      ],
+      paymentStatus: { $in: ['paid', 'confirmed', 'delivered', 'shipped', 'in-transit', 'packed'] }
+    });
+
+    if (!matchingOrders || matchingOrders.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only verified customers who have purchased this product can submit a review and rating.'
+      });
+    }
+
+    // Check if any order is delivered
+    const deliveredOrder = matchingOrders.find(
+      o => o.orderStatus?.toLowerCase() === 'delivered' || o.paymentStatus?.toLowerCase() === 'delivered'
+    );
+
+    if (!deliveredOrder) {
+      const activeOrder = matchingOrders[0];
+      return res.status(403).json({
+        success: false,
+        message: `Your order (${activeOrder.orderId}) is currently ${activeOrder.orderStatus || 'in transit'}. You can rate and review this product once it has been delivered to you.`
+      });
+    }
+
+    const newRatingNum = Math.min(5, Math.max(1, Number(rating)));
+
     product.reviews.unshift({
-      userName,
-      rating: Number(rating),
-      comment,
+      userName: userName.trim(),
+      rating: newRatingNum,
+      comment: comment.trim(),
       verifiedPurchase: true,
       date: new Date()
     });
@@ -194,6 +298,7 @@ router.post('/:id/reviews', async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Review added successfully', product });
   } catch (error) {
+    console.error('Error submitting review:', error);
     res.status(500).json({ success: false, message: 'Error submitting review', error: error.message });
   }
 });

@@ -9,6 +9,7 @@ import {
   Clock,
   MapPin,
   ChevronRight,
+  ChevronLeft,
   Search,
   Receipt,
   X,
@@ -25,6 +26,13 @@ export const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'failed'>('all');
+  const [ordersPage, setOrdersPage] = useState(1);
+  const ORDERS_PER_PAGE = 4;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setOrdersPage(1);
+  }, [searchQuery, statusFilter]);
   
   // Tracking Modal State & Sequential Live Animation
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
@@ -290,160 +298,230 @@ export const OrdersPage: React.FC = () => {
           <p className="text-xs font-bold text-slate-600">Retrieving your order records...</p>
         </div>
       ) : filteredOrders.length > 0 ? (
-        <div className="space-y-6 relative z-10">
-          {filteredOrders.map((order) => {
-            const statusNormalized = (order.orderStatus || order.paymentStatus || 'Confirmed').toLowerCase();
-            const isDelivered = statusNormalized === 'delivered';
-            const isShipped = statusNormalized === 'in-transit' || statusNormalized === 'shipped';
-            const isPacked = statusNormalized === 'packed';
-            const isConfirmed = statusNormalized === 'confirmed' || statusNormalized === 'paid';
-            const isFailed = statusNormalized === 'failed' || (order.paymentStatus === 'pending' && !order.paymentMethod?.toLowerCase().includes('delivery') && !order.paymentMethod?.toLowerCase().includes('cod'));
+        <div className="space-y-6 relative z-10 font-poppins">
+          {(() => {
+            const totalOrdersPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
+            const paginatedOrders = filteredOrders.slice(
+              (ordersPage - 1) * ORDERS_PER_PAGE,
+              ordersPage * ORDERS_PER_PAGE
+            );
 
             return (
-              <div
-                key={order.orderId}
-                className="bg-white/60 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/80 shadow-2xl shadow-blue-500/10 space-y-6 hover:shadow-blue-500/15 transition-all duration-300 relative overflow-hidden font-poppins"
-              >
-                {/* 1. Order Card Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight">
-                        {order.orderId}
-                      </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                          isDelivered
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : isShipped
-                            ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
-                            : isPacked
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : isConfirmed
-                            ? 'bg-blue-50 text-[#0066FF] border border-blue-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}
-                      >
-                        {isDelivered
-                          ? 'Delivered'
-                          : isShipped
-                          ? 'In-Transit'
-                          : isPacked
-                          ? 'Packed'
-                          : isConfirmed
-                          ? 'Confirmed'
-                          : 'Payment Failed'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium">
-                      Placed on:{' '}
-                      <strong className="text-slate-800">
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric'
-                            })
-                          : 'Recently'}
-                      </strong>{' '}
-                      • {isFailed ? (
-                        <span className="text-rose-600 font-bold">Payment Incomplete</span>
-                      ) : (
-                        <span>Paid via <span className="font-bold text-slate-700">{order.paymentMethod || 'Razorpay'}</span></span>
-                      )}
-                    </p>
-                  </div>
+              <>
+                {paginatedOrders.map((order) => {
+                  const statusNormalized = (order.orderStatus || order.paymentStatus || 'Confirmed').toLowerCase();
+                  const isDelivered = statusNormalized === 'delivered';
+                  const isShipped = statusNormalized === 'in-transit' || statusNormalized === 'shipped';
+                  const isPacked = statusNormalized === 'packed';
+                  const isConfirmed = statusNormalized === 'confirmed' || statusNormalized === 'paid';
+                  const isFailed = statusNormalized === 'failed' || (order.paymentStatus === 'pending' && !order.paymentMethod?.toLowerCase().includes('delivery') && !order.paymentMethod?.toLowerCase().includes('cod'));
 
-                  <div className="text-left sm:text-right">
-                    <span className={`text-xl sm:text-2xl font-black font-mono ${isFailed ? 'text-slate-500' : 'text-[#0066FF]'}`}>
-                      ₹{order.totalAmount?.toLocaleString('en-IN')}
-                    </span>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      {order.items?.reduce((acc, i) => acc + (i.quantity || 1), 0)} items • {isFailed ? 'Not Dispatched' : 'Free Express Delivery'}
-                    </p>
-                  </div>
-                </div>
+                  return (
+                    <div
+                      key={order.orderId}
+                      className="bg-white/60 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/80 shadow-2xl shadow-blue-500/10 space-y-6 hover:shadow-blue-500/15 transition-all duration-300 relative overflow-hidden"
+                    >
+                      {/* 1. Order Card Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight">
+                              {order.orderId}
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                                isDelivered
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : isShipped
+                                  ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                                  : isPacked
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : isConfirmed
+                                  ? 'bg-blue-50 text-[#0066FF] border border-blue-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}
+                            >
+                              {isDelivered
+                                ? 'Delivered'
+                                : isShipped
+                                ? 'In-Transit'
+                                : isPacked
+                                ? 'Packed'
+                                : isConfirmed
+                                ? 'Confirmed'
+                                : 'Payment Failed'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium">
+                            Placed on:{' '}
+                            <strong className="text-slate-800">
+                              {order.createdAt
+                                ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })
+                                : 'Recently'}
+                            </strong>{' '}
+                            • {isFailed ? (
+                              <span className="text-rose-600 font-bold">Payment Incomplete</span>
+                            ) : (
+                              <span>Paid via <span className="font-bold text-slate-700">{order.paymentMethod || 'Razorpay'}</span></span>
+                            )}
+                          </p>
+                        </div>
 
-                {/* 2. Order Items Grid */}
-                <div className="divide-y divide-slate-100">
-                  {order.items?.map((item, idx) => (
-                    <div key={idx} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <img
-                          src={item.thumbnail || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=120&q=80'}
-                          alt={item.title}
-                          className="w-14 h-14 rounded-2xl object-cover bg-slate-50 border border-slate-200/80 shrink-0 shadow-2xs"
-                        />
-                        <div className="min-w-0">
-                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1">
-                            {item.title}
-                          </h4>
-                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                            Quantity: <span className="font-bold text-slate-800">{item.quantity}</span> • Unit Price: ₹{item.price?.toLocaleString('en-IN')}
+                        <div className="text-left sm:text-right">
+                          <span className={`text-xl sm:text-2xl font-black font-mono ${isFailed ? 'text-slate-500' : 'text-[#0066FF]'}`}>
+                            ₹{order.totalAmount?.toLocaleString('en-IN')}
+                          </span>
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            {order.items?.reduce((acc, i) => acc + (i.quantity || 1), 0)} items • {isFailed ? 'Not Dispatched' : 'Free Express Delivery'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span className="text-xs sm:text-sm font-black font-mono text-slate-900">
-                          ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                        </span>
+                      {/* 2. Order Items Grid */}
+                      <div className="divide-y divide-slate-100">
+                        {order.items?.map((item, idx) => (
+                          <div key={idx} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 min-w-0">
+                              <img
+                                src={item.thumbnail || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=120&q=80'}
+                                alt={item.title}
+                                className="w-14 h-14 rounded-2xl object-cover bg-slate-50 border border-slate-200/80 shrink-0 shadow-2xs"
+                              />
+                              <div className="min-w-0">
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1">
+                                  {item.title}
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                                  <span className="bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-md text-[11px]">
+                                    Qty: {item.quantity || 1}
+                                  </span>
+                                  <span>•</span>
+                                  <span className="font-mono font-bold text-slate-800">
+                                    ₹{item.price.toLocaleString('en-IN')} each
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span className="font-bold text-slate-900 font-mono text-sm sm:text-base">
+                                ₹{((item.price || 0) * (item.quantity || 1)).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 3. Delivery Info & Action Footer Bar */}
+                      <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        {/* Shipping Address Brief */}
+                        <div className="flex items-start gap-2.5 text-xs text-slate-600">
+                          <MapPin className="w-4 h-4 text-[#0066FF] shrink-0 mt-0.5" />
+                          <div className="font-medium">
+                            <span className="font-bold text-slate-900">Ship to: </span>
+                            <span>
+                              {order.customerDetails?.name}, {order.customerDetails?.address?.city || 'Standard Address'} ({order.customerDetails?.address?.pincode || 'India'})
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Interactive Action Buttons */}
+                        <div className="flex items-center gap-2.5 flex-wrap self-end md:self-auto">
+                          {/* Invoice Button */}
+                          <button
+                            type="button"
+                            onClick={() => setReceiptOrder(order)}
+                            className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-[0.99]"
+                          >
+                            <Receipt className="w-3.5 h-3.5 text-slate-500" />
+                            <span>View Details</span>
+                          </button>
+
+                          {/* Action: Track Order vs Retry Payment */}
+                          {isFailed ? (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRetryOrder(order)}
+                              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/20 transition flex items-center gap-2 cursor-pointer active:scale-[0.99]"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>Retry Payment</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setTrackingOrder(order)}
+                              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center gap-2 cursor-pointer active:scale-[0.99]"
+                            >
+                              <Truck className="w-4 h-4" />
+                              <span>Track Order</span>
+                              <ChevronRight className="w-3.5 h-3.5 opacity-80" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
 
-                {/* 3. Delivery Info & Action Footer Bar */}
-                <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Shipping Address Brief */}
-                  <div className="flex items-start gap-2.5 text-xs text-slate-600">
-                    <MapPin className="w-4 h-4 text-[#0066FF] shrink-0 mt-0.5" />
-                    <div className="font-medium">
-                      <span className="font-bold text-slate-900">Ship to: </span>
-                      <span>
-                        {order.customerDetails?.name}, {order.customerDetails?.address?.city || 'Standard Address'} ({order.customerDetails?.address?.pincode || 'India'})
-                      </span>
+                {/* Bottom Pagination Bar */}
+                {totalOrdersPages > 1 && (
+                  <div className="bg-white/60 backdrop-blur-2xl rounded-3xl p-4 sm:p-5 border border-white/80 shadow-xl shadow-blue-500/5 flex items-center justify-between text-xs font-medium text-slate-500 font-poppins">
+                    <span>
+                      Page {ordersPage} of {totalOrdersPages} ({filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'})
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOrdersPage(prev => Math.max(1, prev - 1));
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        disabled={ordersPage === 1}
+                        className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+
+                      {Array.from({ length: totalOrdersPages }, (_, idx) => idx + 1).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => {
+                            setOrdersPage(pageNum);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className={`w-8 h-8 rounded-lg font-bold flex items-center justify-center transition cursor-pointer ${
+                            ordersPage === pageNum
+                              ? 'bg-[#0066FF] text-white shadow-xs'
+                              : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-2xs'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOrdersPage(prev => Math.min(totalOrdersPages, prev + 1));
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        disabled={ordersPage === totalOrdersPages}
+                        className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Interactive Action Buttons */}
-                  <div className="flex items-center gap-2.5 flex-wrap self-end md:self-auto">
-                    {/* View Details Button (Available for all orders) */}
-                    <button
-                      type="button"
-                      onClick={() => setReceiptOrder(order)}
-                      className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-[0.99]"
-                    >
-                      <Receipt className="w-3.5 h-3.5 text-slate-500" />
-                      <span>View Details</span>
-                    </button>
-
-                    {/* Action: Track Order for confirmed orders vs Retry Payment for failed orders */}
-                    {isFailed ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmRetryOrder(order)}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/20 transition flex items-center gap-2 cursor-pointer active:scale-[0.99]"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Retry Payment</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setTrackingOrder(order)}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center gap-2 cursor-pointer active:scale-[0.99]"
-                      >
-                        <Truck className="w-4 h-4" />
-                        <span>Track Order</span>
-                        <ChevronRight className="w-3.5 h-3.5 opacity-80" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+                )}
+              </>
             );
-          })}
+          })()}
         </div>
       ) : (
         /* Empty Orders State */

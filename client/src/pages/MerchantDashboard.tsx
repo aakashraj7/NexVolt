@@ -12,7 +12,7 @@ import {
   Sparkles,
   CheckCircle2,
   Loader2,
-  Zap,
+  Clock,
   Settings,
   Eye,
   X,
@@ -210,6 +210,13 @@ export const MerchantDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [catalogPage, setCatalogPage] = useState(1);
+  const CATALOG_ITEMS_PER_PAGE = 5;
+
+  // Reset catalog page on search query change
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [searchParam]);
 
   // Order Details Modal state
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
@@ -315,6 +322,13 @@ export const MerchantDashboard: React.FC = () => {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, orderStatus: string) => {
+    const updatedPaymentStatus =
+      orderStatus === 'Delivered'
+        ? 'delivered'
+        : orderStatus === 'In-Transit'
+        ? 'shipped'
+        : 'paid';
+
     // 1. Optimistic UI update immediately
     setOrders(prev =>
       prev.map(o =>
@@ -322,18 +336,31 @@ export const MerchantDashboard: React.FC = () => {
           ? {
               ...o,
               orderStatus,
-              paymentStatus: orderStatus === 'Delivered' ? 'delivered' : orderStatus === 'In-Transit' ? 'shipped' : o.paymentStatus
+              paymentStatus: updatedPaymentStatus
             }
           : o
       )
     );
+
+    if (selectedOrderDetails && selectedOrderDetails.orderId === orderId) {
+      setSelectedOrderDetails(prev =>
+        prev ? { ...prev, orderStatus, paymentStatus: updatedPaymentStatus } : null
+      );
+    }
+
     try {
-      await api.updateOrderStatus(orderId, { orderStatus });
+      const res = await api.updateOrderStatus(orderId, { orderStatus });
       showToast(`Order status updated to "${orderStatus}"`, 'success');
-      loadData();
+      if (res?.success && res.order) {
+        setOrders(prev =>
+          prev.map(o => (o.orderId === orderId || o._id === res.order._id ? { ...o, ...res.order } : o))
+        );
+        if (selectedOrderDetails && selectedOrderDetails.orderId === orderId) {
+          setSelectedOrderDetails(prev => (prev ? { ...prev, ...res.order } : null));
+        }
+      }
     } catch {
       showToast('Failed to update order status', 'error');
-      loadData();
     }
   };
 
@@ -541,95 +568,142 @@ export const MerchantDashboard: React.FC = () => {
                 )
               : products;
 
+            const totalCatalogPages = Math.max(1, Math.ceil(filteredCatalog.length / CATALOG_ITEMS_PER_PAGE));
+            const paginatedCatalog = filteredCatalog.slice(
+              (catalogPage - 1) * CATALOG_ITEMS_PER_PAGE,
+              catalogPage * CATALOG_ITEMS_PER_PAGE
+            );
+
             return filteredCatalog.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-700 font-poppins">
-                  <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
-                    <tr>
-                      <th className="px-6 py-3.5">Product Title & Brand</th>
-                      <th className="px-4 py-3.5">Category</th>
-                      <th className="px-4 py-3.5">Price & MRP</th>
-                      <th className="px-4 py-3.5">Discount</th>
-                      <th className="px-4 py-3.5">Rating & Reviews</th>
-                      <th className="px-6 py-3.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {filteredCatalog.map((p) => (
-                      <tr key={p._id} className="hover:bg-slate-50/70 transition">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={p.thumbnail}
-                              alt={p.title}
-                              className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shadow-2xs shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 line-clamp-1 max-w-[260px] text-xs">
-                                {p.title}
-                              </p>
-                              <p className="text-[11px] text-[#0066FF] font-bold uppercase">
-                                {p.brand}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
-                            {p.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 font-mono font-bold text-slate-900">
-                          <div>₹{p.price.toLocaleString('en-IN')}</div>
-                          {p.originalPrice > p.price && (
-                            <span className="text-[10px] text-slate-400 line-through">
-                              ₹{p.originalPrice.toLocaleString('en-IN')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 font-mono">
-                          {p.discountPercent > 0 ? (
-                            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 font-bold text-[10px] border border-rose-200">
-                              {p.discountPercent}% OFF
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-[11px]">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-1 text-amber-500 font-bold">
-                            <span>★</span>
-                            <span className="text-slate-800 text-xs">{p.rating || '4.8'}</span>
-                            <span className="text-slate-400 font-normal text-[10px]">
-                              ({p.numReviews || 0})
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditProduct(p)}
-                              className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                              title="Edit product in Studio"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                              <span>Edit</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteProduct(p._id, p.title)}
-                              className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition cursor-pointer"
-                              title="Delete product"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+              <div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-700 font-poppins">
+                    <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-3.5">Product Title & Brand</th>
+                        <th className="px-4 py-3.5">Category</th>
+                        <th className="px-4 py-3.5">Price & MRP</th>
+                        <th className="px-4 py-3.5">Discount</th>
+                        <th className="px-4 py-3.5">Rating & Reviews</th>
+                        <th className="px-6 py-3.5 text-right">Actions</th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {paginatedCatalog.map((p) => (
+                        <tr key={p._id} className="hover:bg-slate-50/70 transition">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={p.thumbnail}
+                                alt={p.title}
+                                className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shadow-2xs shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 line-clamp-1 max-w-[260px] text-xs">
+                                  {p.title}
+                                </p>
+                                <p className="text-[11px] text-[#0066FF] font-bold uppercase">
+                                  {p.brand}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
+                              {p.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 font-mono font-bold text-slate-900">
+                            <div>₹{p.price.toLocaleString('en-IN')}</div>
+                            {p.originalPrice > p.price && (
+                              <span className="text-[10px] text-slate-400 line-through">
+                                ₹{p.originalPrice.toLocaleString('en-IN')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 font-mono">
+                            {p.discountPercent > 0 ? (
+                              <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 font-bold text-[10px] border border-rose-200">
+                                {p.discountPercent}% OFF
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-1 text-amber-500 font-bold">
+                              <span>★</span>
+                              <span className="text-slate-800 text-xs">{p.rating || '4.8'}</span>
+                              <span className="text-slate-400 font-normal text-[10px]">
+                                ({p.numReviews || 0})
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditProduct(p)}
+                                className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                                title="Edit product in Studio"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(p._id, p.title)}
+                                className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition cursor-pointer"
+                                title="Delete product"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Bottom Pagination Bar */}
+                <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-white text-xs font-medium text-slate-500 font-poppins">
+                  <span>Page {catalogPage} of {totalCatalogPages} ({filteredCatalog.length} {filteredCatalog.length === 1 ? 'item' : 'items'})</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCatalogPage(prev => Math.max(1, prev - 1))}
+                      disabled={catalogPage === 1}
+                      className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {Array.from({ length: totalCatalogPages }, (_, idx) => idx + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCatalogPage(pageNum)}
+                        className={`w-8 h-8 rounded-lg font-bold flex items-center justify-center transition cursor-pointer ${
+                          catalogPage === pageNum
+                            ? 'bg-[#0066FF] text-white shadow-xs'
+                            : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
                     ))}
-                  </tbody>
-                </table>
+
+                    <button
+                      type="button"
+                      onClick={() => setCatalogPage(prev => Math.min(totalCatalogPages, prev + 1))}
+                      disabled={catalogPage === totalCatalogPages}
+                      className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-4">
@@ -828,74 +902,87 @@ export const MerchantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Track 3 AI Revenue Recovery Hub */}
+      {/* Tab 3: AI Revenue Recovery Hub */}
       {activeTab === 'recovery' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-900 to-indigo-950 text-white space-y-3 shadow-xl shadow-blue-950/20">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-cyan-300 text-xs font-bold uppercase font-poppins">
-              <Zap className="w-3.5 h-3.5" /> Razorpay Buildathon Track 3: AI Revenue Recovery Agent
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-3 font-poppins">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#0066FF] border border-blue-200/80 text-xs font-bold font-poppins">
+                <Sparkles className="w-3.5 h-3.5 text-[#0066FF]" />
+                <span>Automated Conversion Agent</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-semibold text-slate-600">Recovery Agent Active</span>
+              </div>
             </div>
-            <h2 className="text-2xl font-extrabold font-poppins">
-              Autonomous AI Cart & Checkout Abandonment Recovery
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-poppins">
+              Smart Cart & Checkout Abandonment Recovery
             </h2>
-            <p className="text-blue-200 text-xs leading-relaxed max-w-2xl">
-              Our intelligent agent detects when shoppers drop off at the Razorpay checkout stage, calculates personalized time-sensitive incentive vouchers, and recovers otherwise lost electronics sales.
+            <p className="text-slate-500 text-xs sm:text-sm leading-relaxed max-w-3xl font-medium">
+              Our autonomous AI agent continuously monitors buyer drop-offs during online checkout, analyzes cart value, and delivers personalized, time-sensitive incentive vouchers to recover lost sales for your store.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Abandoned Checkouts */}
-            <div className="bg-white/50 backdrop-blur-2xl rounded-3xl p-6 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-4">
-              <h3 className="text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
-                <span>Abandoned Checkout Sessions</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-mono">
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 font-poppins">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
+                <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <span>Pending Abandoned Checkouts</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-mono font-bold">
                   {abandonedCheckouts.length} Active
                 </span>
               </h3>
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                 {abandonedCheckouts.length > 0 ? (
                   abandonedCheckouts.map((o) => (
-                    <div key={o.orderId} className="p-3 rounded-xl bg-slate-50/80 border border-slate-200 text-xs flex items-center justify-between">
+                    <div key={o.orderId} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between transition hover:border-slate-300">
                       <div>
                         <p className="font-bold text-slate-900 font-mono">{o.orderId}</p>
-                        <p className="text-slate-500 text-[11px]">{o.customerDetails?.email}</p>
+                        <p className="text-slate-500 text-[11px] mt-0.5">{o.customerDetails?.email}</p>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-slate-900 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-amber-600 font-semibold font-poppins">Drop-off detected</span>
+                        <span className="block text-[10px] text-amber-600 font-semibold font-poppins mt-0.5">Drop-off detected</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400 py-6 text-center">No abandoned checkouts currently pending.</p>
+                  <p className="text-xs text-slate-400 py-8 text-center font-medium">No abandoned checkouts currently pending.</p>
                 )}
               </div>
             </div>
 
             {/* Recovered Orders */}
-            <div className="bg-white/50 backdrop-blur-2xl rounded-3xl p-6 border border-white/70 shadow-2xl shadow-blue-500/10 space-y-4">
-              <h3 className="text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
-                <span>AI Recovered Orders</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono">
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 font-poppins">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span>Recovered Store Orders</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold">
                   {recoveredOrders.length} Recovered
                 </span>
               </h3>
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                 {recoveredOrders.length > 0 ? (
                   recoveredOrders.map((o) => (
-                    <div key={o.orderId} className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs flex items-center justify-between">
+                    <div key={o.orderId} className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs flex items-center justify-between transition hover:border-emerald-300">
                       <div>
                         <p className="font-bold text-slate-900 font-mono">{o.orderId}</p>
-                        <p className="text-slate-500 text-[11px]">{o.customerDetails?.email}</p>
+                        <p className="text-slate-500 text-[11px] mt-0.5">{o.customerDetails?.email}</p>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-emerald-700 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-emerald-600 font-semibold font-poppins">Successfully Recovered</span>
+                        <span className="block text-[10px] text-emerald-600 font-semibold font-poppins mt-0.5">Successfully Recovered</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400 py-6 text-center">No recovered orders recorded yet.</p>
+                  <p className="text-xs text-slate-400 py-8 text-center font-medium">No recovered orders recorded yet.</p>
                 )}
               </div>
             </div>
