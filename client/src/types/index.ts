@@ -100,6 +100,7 @@ export interface Order {
   currency: string;
   paymentMethod: string;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'shipped' | 'delivered' | string;
+  orderStatus?: 'Confirmed' | 'Packed' | 'In-Transit' | 'Delivered' | string;
   checkoutStatus: 'initiated' | 'abandoned' | 'recovered' | 'completed';
   createdAt?: string;
 }

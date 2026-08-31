@@ -18,7 +18,11 @@ import {
   Home,
   Briefcase,
   Building2,
-  X
+  X,
+  CreditCard,
+  AlertCircle,
+  Store,
+  Edit
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, UserAddress } from '../types';
@@ -31,6 +35,7 @@ export const ProductDetailPage: React.FC = () => {
   const { idOrSlug } = useParams<{ idOrSlug: string }>();
   const navigate = useNavigate();
   const { user, isSignedIn } = useUser();
+  const [isMerchantUser, setIsMerchantUser] = useState(false);
   const { addToCart, removeFromCart, isInCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
@@ -40,6 +45,18 @@ export const ProductDetailPage: React.FC = () => {
   const [activeImage, setActiveImage] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isSignedIn && user) {
+      api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress).then((res) => {
+        setIsMerchantUser(res?.isMerchant === true || res?.role === 'merchant');
+      }).catch(() => {
+        setIsMerchantUser(false);
+      });
+    } else {
+      setIsMerchantUser(false);
+    }
+  }, [isSignedIn, user]);
 
   // Saved user addresses state for delivery selector
   const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
@@ -60,6 +77,16 @@ export const ProductDetailPage: React.FC = () => {
   const [newAddrPostalCode, setNewAddrPostalCode] = useState('');
   const [newAddrIsDefault, setNewAddrIsDefault] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
+
+  // Review form states
+  const [reviewName, setReviewName] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // 1-Click Express Checkout Modal States
+  const [showOneClickConfirmModal, setShowOneClickConfirmModal] = useState(false);
+  const [isInitiatingOneClick, setIsInitiatingOneClick] = useState(false);
 
   const handleOpenAddAddressModal = () => {
     setAddressDropdownOpen(false);
@@ -135,12 +162,6 @@ export const ProductDetailPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  // Review form states
-  const [reviewName, setReviewName] = useState('');
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
-
   // Load user saved addresses if signed in
   useEffect(() => {
     const loadAddresses = async () => {
@@ -190,6 +211,99 @@ export const ProductDetailPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [idOrSlug]);
 
+  const handleTriggerOneClick = () => {
+    if (!isSignedIn || !user) {
+      showToast('Please sign in to use 1-Click Express Checkout.', 'info');
+      navigate('/sign-in');
+      return;
+    }
+    setShowOneClickConfirmModal(true);
+  };
+
+  const handleProceedOneClick = async () => {
+    if (!product || !user) return;
+    try {
+      setIsInitiatingOneClick(true);
+      const activeAddress = userAddresses.find(a => a._id === selectedAddressId) || userAddresses[0] || {
+        street: '42, Anna Salai, T. Nagar',
+        city: 'Chennai',
+        state: 'Tamil Nadu',
+        postalCode: '600017',
+        country: 'India',
+        recipientName: user.fullName || 'Customer',
+        phone: user.primaryPhoneNumber?.phoneNumber || '9000000000'
+      };
+
+      const lineTotal = product.price * quantity;
+      const tax = Math.round(lineTotal * 0.18);
+      const totalAmount = lineTotal;
+
+      const orderPayload = {
+        userId: user.id,
+        customerDetails: {
+          name: activeAddress.recipientName || user.fullName || 'Customer',
+          email: user.primaryEmailAddress?.emailAddress || '',
+          phone: activeAddress.phone || user.primaryPhoneNumber?.phoneNumber || '9876543210',
+          address: {
+            street: activeAddress.street,
+            city: activeAddress.city,
+            state: activeAddress.state,
+            pincode: activeAddress.postalCode,
+            country: activeAddress.country || 'India'
+          }
+        },
+        items: [{
+          product: product._id,
+          title: product.title,
+          thumbnail: product.thumbnail,
+          price: product.price,
+          quantity: quantity
+        }],
+        subtotal: lineTotal - tax,
+        tax,
+        shipping: 0,
+        discountAmount: 0,
+        totalAmount,
+        currency: 'INR',
+        paymentMethod: 'Razorpay'
+      };
+
+      const initiateRes = await api.initiateOrder(orderPayload);
+      const activeOrderId = initiateRes?.orderId || ('NV-' + Date.now());
+
+      setShowOneClickConfirmModal(false);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      navigate(`/order/processing/${activeOrderId}`, {
+        state: {
+          order: {
+            ...orderPayload,
+            orderId: activeOrderId
+          },
+          from: 'product',
+          immediateStatus: 'initiating'
+        }
+      });
+    } catch (err: any) {
+      console.error('1-Click checkout initiation error:', err);
+      showToast(err.response?.data?.message || 'Failed to initiate 1-Click checkout.', 'error');
+    } finally {
+      setIsInitiatingOneClick(false);
+    }
+  };
+
+  const handleManualBuyNow = () => {
+    if (!product) return;
+    addToCart(product, quantity);
+    navigate('/checkout');
+  };
+
+  const handleCopyLink = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Product link copied to clipboard!', 'info');
+    }
+  };
+
   if (loading || !product) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -234,13 +348,6 @@ export const ProductDetailPage: React.FC = () => {
       showToast('Error submitting review', 'error');
     } finally {
       setSubmittingReview(false);
-    }
-  };
-
-  const handleCopyLink = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      showToast('Product link copied to clipboard!', 'info');
     }
   };
 
@@ -371,8 +478,8 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
-          {/* Delivery Address Selector for Logged In User */}
-          {isSignedIn && user && userAddresses.length > 0 && (() => {
+          {/* Delivery Address Selector for Logged In Customer */}
+          {!isMerchantUser && isSignedIn && user && userAddresses.length > 0 && (() => {
             const activeAddress = userAddresses.find(a => a._id === selectedAddressId) || userAddresses[0];
 
             return (
@@ -512,78 +619,113 @@ export const ProductDetailPage: React.FC = () => {
             );
           })()}
 
-          {/* Quantity & CTA buttons */}
-          <div className="space-y-4 pt-4 border-t border-slate-200">
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quantity:</span>
-              <div className="flex items-center bg-white border border-slate-300 rounded-xl p-1 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition"
+          {/* Merchant Mode Notice vs Consumer Quantity & CTA buttons */}
+          {isMerchantUser ? (
+            <div className="p-5 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 font-bold text-xs">
+                  <Store className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Product Catalog Preview (Merchant Mode)</span>
+                </div>
+                <Link
+                  to={`/merchant/dashboard?tab=products&editProductId=${product._id}`}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <span className="px-4 text-sm font-bold text-slate-900 font-mono">{quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.min(99, quantity + 1))}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+                  <Edit className="w-3.5 h-3.5 text-slate-950" />
+                  <span>Edit in Product Studio</span>
+                </Link>
+              </div>
+              <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                You are viewing this listing in Merchant Mode. Consumer actions (1-Click instant checkout, standard cart, and wishlist) are disabled for seller accounts.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quantity:</span>
+                <div className="flex items-center bg-white border border-slate-300 rounded-xl p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="px-4 text-sm font-bold text-slate-900 font-mono">{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.min(99, quantity + 1))}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Action CTAs */}
+              <div className="space-y-3">
+                {/* Row 1: 1-Click vs Manual Checkout */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* 1. 1-Click Express Checkout */}
+                  <button
+                    type="button"
+                    onClick={handleTriggerOneClick}
+                    className="py-3.5 sm:py-4 px-5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                  >
+                    <Zap className="w-4 h-4 fill-current" />
+                    <span>Buy Now with 1-Click</span>
+                  </button>
+
+                  {/* 2. Manual Standard Checkout */}
+                  <button
+                    type="button"
+                    onClick={handleManualBuyNow}
+                    className="py-3.5 sm:py-4 px-5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-[#0066FF] font-bold text-xs sm:text-sm shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                  >
+                    <CreditCard className="w-4 h-4 text-slate-600" />
+                    <span>Buy Now (Manual)</span>
+                  </button>
+                </div>
+
+                {/* Row 2: Add to Cart & Wishlist */}
+                <div className="flex items-center gap-3">
+                  {/* Dynamic Add / Remove from Cart Button */}
+                  {itemInCart ? (
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(product._id)}
+                      className="flex-1 py-3 px-5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs sm:text-sm transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600" />
+                      <span>Remove from Cart</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => addToCart(product, quantity)}
+                      className="flex-1 py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ShoppingBag className="w-4 h-4 text-slate-600" />
+                      <span>Add to Shopping Cart</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => toggleWishlist(product)}
+                    className={`py-3 px-4 rounded-xl border transition shadow-xs flex items-center justify-center cursor-pointer ${
+                      isFavorited
+                        ? 'bg-rose-50 border-rose-200 text-rose-600'
+                        : 'bg-white border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-slate-50'
+                    }`}
+                    title={isFavorited ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                  >
+                    <Heart className={`w-4 h-4 ${isFavorited ? 'fill-rose-500 text-rose-500' : ''}`} />
+                  </button>
+                </div>
               </div>
             </div>
-
-            {/* Buy & Cart Buttons - Mobile optimized stacking */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const added = addToCart(product, quantity);
-                  if (added) navigate('/cart');
-                }}
-                className="flex-1 py-3.5 sm:py-4 px-6 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition flex items-center justify-center gap-2"
-              >
-                <Zap className="w-4 h-4" />
-                <span>Buy Now with 1-Click</span>
-              </button>
-
-              {/* Dynamic Add / Remove from Cart Button */}
-              {itemInCart ? (
-                <button
-                  type="button"
-                  onClick={() => removeFromCart(product._id)}
-                  className="py-3.5 sm:py-4 px-6 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-sm transition shadow-xs flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4 text-rose-600" />
-                  <span>Remove from Cart</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => addToCart(product, quantity)}
-                  className="py-3.5 sm:py-4 px-6 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 font-bold text-sm transition shadow-xs flex items-center justify-center gap-2"
-                >
-                  <ShoppingBag className="w-4 h-4 text-[#0066FF]" />
-                  <span>Add to Cart</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => toggleWishlist(product)}
-                className={`py-3.5 sm:py-4 px-4 rounded-xl border transition shadow-sm flex items-center justify-center ${
-                  isFavorited
-                    ? 'bg-rose-50 border-rose-300 text-rose-600'
-                    : 'bg-white border-slate-300 text-slate-500 hover:text-rose-600'
-                }`}
-                title="Save to Wishlist"
-              >
-                <Heart className={`w-5 h-5 ${isFavorited ? 'fill-rose-500 text-rose-500' : ''}`} />
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -648,59 +790,61 @@ export const ProductDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Write a Review Form */}
-        <form onSubmit={handleAddReview} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-          <h4 className="text-sm font-bold text-slate-900">Write a Customer Review</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Write a Review Form (Customer Mode Only) */}
+        {!isMerchantUser && (
+          <form onSubmit={handleAddReview} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+            <h4 className="text-sm font-bold text-slate-900">Write a Customer Review</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Your Name</label>
+                <input
+                  type="text"
+                  value={reviewName}
+                  onChange={(e) => setReviewName(e.target.value)}
+                  placeholder="Alex Vance"
+                  required
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Rating</label>
+                <select
+                  value={reviewRating}
+                  onChange={(e) => setReviewRating(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-sm"
+                >
+                  <option value={5}>5 Stars - Outstanding</option>
+                  <option value={4}>4 Stars - Great</option>
+                  <option value={3}>3 Stars - Average</option>
+                  <option value={2}>2 Stars - Poor</option>
+                  <option value={1}>1 Star - Terrible</option>
+                </select>
+              </div>
+            </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Your Name</label>
-              <input
-                type="text"
-                value={reviewName}
-                onChange={(e) => setReviewName(e.target.value)}
-                placeholder="Alex Vance"
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Your Review</label>
+              <textarea
+                rows={3}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="What did you love about this gear?"
                 required
-                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-sm"
+                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-sm"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Rating</label>
-              <select
-                value={reviewRating}
-                onChange={(e) => setReviewRating(Number(e.target.value))}
-                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-sm"
-              >
-                <option value={5}>5 Stars - Outstanding</option>
-                <option value={4}>4 Stars - Great</option>
-                <option value={3}>3 Stars - Average</option>
-                <option value={2}>2 Stars - Poor</option>
-                <option value={1}>1 Star - Terrible</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Your Review</label>
-            <textarea
-              rows={3}
-              value={reviewComment}
-              onChange={(e) => setReviewComment(e.target.value)}
-              placeholder="What did you love about this gear?"
-              required
-              className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-900 outline-none focus:border-[#0066FF] shadow-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submittingReview}
-            className="px-6 py-2.5 rounded-xl bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs shadow transition"
-          >
-            Submit Review
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={submittingReview}
+              className="px-6 py-2.5 rounded-xl bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs shadow transition"
+            >
+              Submit Review
+            </button>
+          </form>
+        )}
       </div>
 
-      {/* Related Products Carousel */}
-      {related.length > 0 && (
+      {/* Related Products Carousel (Customer Mode Only) */}
+      {!isMerchantUser && related.length > 0 && (
         <div className="space-y-6">
           <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading">
             Related Electronics You May Like
@@ -910,6 +1054,151 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* 1-Click Express Checkout Confirmation Modal */}
+      {showOneClickConfirmModal && product && (() => {
+        const activeAddress = userAddresses.find(a => a._id === selectedAddressId) || userAddresses[0];
+        const lineTotal = product.price * quantity;
+        const tax = Math.round(lineTotal * 0.18);
+        const subtotal = lineTotal - tax;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 font-poppins">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+              
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200 shadow-sm shrink-0">
+                    <Zap className="w-5 h-5 fill-current" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 font-heading">
+                      Confirm 1-Click Order?
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Fast express checkout without touching your cart
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOneClickConfirmModal(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Product Snapshot */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3.5">
+                <img
+                  src={product.thumbnail}
+                  alt={product.title}
+                  className="w-14 h-14 rounded-xl object-cover bg-white border border-slate-200 shrink-0 shadow-2xs"
+                />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1">
+                    {product.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    Qty: <span className="font-bold text-slate-800">{quantity}</span> • Unit Price: ₹{product.price.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-sm font-black font-mono text-[#0066FF]">
+                    ₹{lineTotal.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Delivery Address Destination */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70 text-xs space-y-1.5">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#0066FF]" />
+                    <span>Delivering To:</span>
+                  </span>
+                  {activeAddress && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-blue-700 border border-blue-200">
+                      {activeAddress.label}
+                    </span>
+                  )}
+                </div>
+                {activeAddress ? (
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    <span className="font-bold text-slate-900">{activeAddress.recipientName}</span> • {activeAddress.street}, {activeAddress.city} - {activeAddress.postalCode}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">No saved address selected. Standard address will be used.</p>
+                )}
+              </div>
+
+              {/* Price Breakdown */}
+              <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden text-xs bg-white">
+                <div className="p-3 bg-slate-50 space-y-1.5">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Subtotal ({quantity} item{quantity > 1 ? 's' : ''}):</span>
+                    <span className="font-mono font-bold text-slate-900">₹{subtotal.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>GST (18% Included):</span>
+                    <span className="font-mono font-bold text-slate-900">₹{tax.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Express Air Shipping:</span>
+                    <span className="font-bold text-emerald-600">FREE</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-200">
+                    <span>Total Amount:</span>
+                    <span className="font-mono text-base text-[#0066FF]">₹{lineTotal.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear Explicit Notice Banner */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Payment & Checkout Policy</span>
+                </div>
+                <ul className="text-[11px] text-amber-800/90 space-y-1 list-disc list-inside font-medium leading-relaxed">
+                  <li>This 1-click action redirects directly to the secure <strong>Razorpay Payment Gateway</strong>.</li>
+                  <li><strong>Pay on Delivery (COD)</strong> is available on <strong>Manual Checkout</strong> only.</li>
+                </ul>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOneClickConfirmModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isInitiatingOneClick}
+                  onClick={handleProceedOneClick}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+                >
+                  {isInitiatingOneClick ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Initiating Checkout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 fill-current" />
+                      <span>Proceed to 1-Click Payment</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

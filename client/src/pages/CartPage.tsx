@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   ShieldAlert,
   Loader2,
-  MapPin
+  MapPin,
+  AlertCircle
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -82,8 +83,10 @@ export const CartPage: React.FC = () => {
     }
   };
 
+  const [showOneClickConfirmModal, setShowOneClickConfirmModal] = useState(false);
+
   // 1-Click Instant Order Place via Razorpay
-  const handleOneClickCheckout = async () => {
+  const handleOneClickCheckout = () => {
     if (!isSignedIn || !user) {
       showToast('Please sign in to place an order.', 'info');
       navigate('/sign-in');
@@ -102,6 +105,11 @@ export const CartPage: React.FC = () => {
       return;
     }
 
+    setShowOneClickConfirmModal(true);
+  };
+
+  const handleProceedOneClickPayment = async () => {
+    if (!user || !defaultAddress) return;
     setIsProcessingOneClick(true);
 
     try {
@@ -139,14 +147,16 @@ export const CartPage: React.FC = () => {
       const initiateRes = await api.initiateOrder(orderPayload);
       const activeOrderId = initiateRes?.orderId || ('NV-' + Date.now());
 
-      // Transition to dedicated Order Processing & Payment Status Window
+      setShowOneClickConfirmModal(false);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       navigate(`/order/processing/${activeOrderId}`, {
         state: {
           order: {
             ...orderPayload,
             orderId: activeOrderId
           },
-          from: 'cart'
+          from: 'cart',
+          immediateStatus: 'initiating'
         }
       });
     } catch (err: any) {
@@ -471,6 +481,123 @@ export const CartPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 1-Click Express Checkout Confirmation Modal for Cart */}
+      {showOneClickConfirmModal && defaultAddress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 font-poppins">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200 shadow-sm shrink-0">
+                  <Zap className="w-5 h-5 fill-current" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 font-heading">
+                    Confirm 1-Click Checkout?
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Placing order for {cart.length} item{cart.length > 1 ? 's' : ''} in cart
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOneClickConfirmModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Delivery Address Destination */}
+            <div className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70 text-xs space-y-1.5">
+              <div className="flex items-center justify-between font-bold text-slate-900">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-[#0066FF]" />
+                  <span>Delivering To Default Address:</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-blue-700 border border-blue-200">
+                  {defaultAddress.label || 'Home'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 font-medium">
+                <span className="font-bold text-slate-900">{defaultAddress.recipientName}</span> • {defaultAddress.street}, {defaultAddress.city} - {defaultAddress.postalCode}
+              </p>
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden text-xs bg-white">
+              <div className="p-3 bg-slate-50 space-y-1.5">
+                <div className="flex justify-between text-slate-600">
+                  <span>Subtotal ({totalItems} items):</span>
+                  <span className="font-mono font-bold text-slate-900">₹{subtotal.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>GST (18% Included):</span>
+                  <span className="font-mono font-bold text-slate-900">₹{tax.toLocaleString('en-IN')}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-semibold">
+                    <span>Coupon Discount:</span>
+                    <span className="font-mono font-bold">-₹{discount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-600">
+                  <span>Express Air Shipping:</span>
+                  <span className="font-bold text-emerald-600">FREE</span>
+                </div>
+                <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-200">
+                  <span>Total Amount:</span>
+                  <span className="font-mono text-base text-[#0066FF]">₹{totalAmount.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Clear Explicit Notice Banner */}
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs space-y-1.5">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Payment & Checkout Policy</span>
+              </div>
+              <ul className="text-[11px] text-amber-800/90 space-y-1 list-disc list-inside font-medium leading-relaxed">
+                <li>This 1-click action redirects directly to the secure <strong>Razorpay Payment Gateway</strong>.</li>
+                <li><strong>Pay on Delivery (COD)</strong> is available on <strong>Manual Checkout</strong> only.</li>
+              </ul>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowOneClickConfirmModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isProcessingOneClick}
+                onClick={handleProceedOneClickPayment}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                {isProcessingOneClick ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Initiating Checkout...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>Proceed to 1-Click Payment</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

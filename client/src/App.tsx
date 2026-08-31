@@ -38,6 +38,7 @@ import { MerchantSignUpPage } from './pages/MerchantSignUpPage';
 import { MerchantOnboardingPage } from './pages/MerchantOnboardingPage';
 import { MerchantDashboard } from './pages/MerchantDashboard';
 import { MerchantProfilePage } from './pages/MerchantProfilePage';
+import { MerchantStorefrontPage } from './pages/MerchantStorefrontPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { OrderProcessingPage } from './pages/OrderProcessingPage';
@@ -224,6 +225,7 @@ export function App() {
                     <Route path="/merchant/onboarding" element={<MerchantOnboardingPage />} />
                     <Route path="/merchant" element={<MerchantDashboard />} />
                     <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
+                    <Route path="/merchant/storefront" element={<MerchantStorefrontPage />} />
                     <Route path="/merchant/profile" element={<MerchantProfilePage />} />
                   </Routes>
                 </main>

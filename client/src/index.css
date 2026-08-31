@@ -215,12 +215,14 @@
 .text-gradient {
   background: linear-gradient(135deg, #0066FF 0%, #0052CC 50%, #6366f1 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient-amber {
   background: linear-gradient(135deg, #d97706 0%, #dc2626 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

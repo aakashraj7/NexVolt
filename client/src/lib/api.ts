@@ -355,9 +355,10 @@ export const api = {
     return [];
   },
 
-  async updateOrderStatus(orderId: string, paymentStatus?: string, checkoutStatus?: string) {
+  async updateOrderStatus(orderId: string, updates: { orderStatus?: string; paymentStatus?: string; checkoutStatus?: string } | string) {
     try {
-      const res = await apiClient.put(`/merchant/orders/${orderId}/status`, { paymentStatus, checkoutStatus });
+      const payload = typeof updates === 'string' ? { paymentStatus: updates } : updates;
+      const res = await apiClient.put(`/merchant/orders/${orderId}/status`, payload);
       return res.data;
     } catch (err) {
       console.warn('Backend updateOrderStatus unavailable');
@@ -396,7 +397,7 @@ export const api = {
   },
 
   // User Profile & Custom Addresses & Password Management
-  async getUserProfile(userId: string, params?: { email?: string; fullName?: string; provider?: string }) {
+  async getUserProfile(userId: string, params?: { email?: string; fullName?: string; provider?: string; isEmailVerified?: boolean | string }) {
     try {
       const res = await apiClient.get(`/users/profile/${userId}`, { params });
       if (res.data && res.data.success) {

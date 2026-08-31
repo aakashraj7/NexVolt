@@ -16,21 +16,25 @@ import {
   Gamepad2,
   Camera,
   Flame,
-  Zap,
   Store,
-  LayoutDashboard
+  LayoutDashboard,
+  Eye,
+  Edit,
+  Plus
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { CustomUserMenu } from '../auth/CustomUserMenu';
 import { MOCK_PRODUCTS } from '../../lib/mockData';
 import { api } from '../../lib/api';
+import type { Product } from '../../types';
 
 import logoImg from '../../assets/nexVolt-logo.png';
 
 export const Navbar: React.FC = () => {
   const { isSignedIn, user } = useUser();
   const [isMerchant, setIsMerchant] = useState(false);
+  const [merchantProducts, setMerchantProducts] = useState<Product[]>([]);
   const { totalItems } = useCart();
   const { totalWishlistItems } = useWishlist();
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,12 +45,20 @@ export const Navbar: React.FC = () => {
   useEffect(() => {
     if (!isSignedIn || !user) {
       setIsMerchant(false);
+      setMerchantProducts([]);
       return;
     }
     const checkRole = async () => {
       try {
         const roleData = await api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress);
-        setIsMerchant(roleData?.isMerchant === true || roleData?.role === 'merchant');
+        const merchantActive = roleData?.isMerchant === true || roleData?.role === 'merchant';
+        setIsMerchant(merchantActive);
+        if (merchantActive) {
+          const prodsRes = await api.getMerchantProducts(user.id, { limit: 100 });
+          if (prodsRes?.products) {
+            setMerchantProducts(prodsRes.products);
+          }
+        }
       } catch {
         setIsMerchant(false);
       }
@@ -72,21 +84,32 @@ export const Navbar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  // Filter live search suggestions
+  // Filter live search suggestions (Scoped to merchant's products if isMerchant)
   const suggestions = searchQuery.trim()
-    ? MOCK_PRODUCTS.filter(
-        (p) =>
-          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.category.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 5)
+    ? isMerchant
+      ? merchantProducts.filter(
+          (p) =>
+            p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.category.toLowerCase().includes(searchQuery.toLowerCase())
+        ).slice(0, 6)
+      : MOCK_PRODUCTS.filter(
+          (p) =>
+            p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.category.toLowerCase().includes(searchQuery.toLowerCase())
+        ).slice(0, 5)
     : [];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setShowSuggestions(false);
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      if (isMerchant) {
+        navigate(`/merchant/dashboard?tab=products&search=${encodeURIComponent(searchQuery.trim())}`);
+      } else {
+        navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      }
     }
   };
 
@@ -117,90 +140,115 @@ export const Navbar: React.FC = () => {
 
               {/* Bandage Style Sticker for Merchant Mode */}
               {isMerchant && (
-                <Link
-                  to="/merchant/dashboard"
-                  className="relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-black text-[9px] sm:text-[11px] tracking-wider uppercase shadow-md shadow-amber-500/25 border-y border-dashed border-amber-700/50 rounded-xs -rotate-2 hover:rotate-0 hover:scale-105 transition-all duration-200 group shrink-0 select-none cursor-pointer font-poppins"
-                  title="Merchant Mode Active - Click to open Seller Dashboard"
-                >
-                  <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-r-xs pointer-events-none" />
-                  <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-900 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold tracking-wide">Merchant Mode</span>
-                  <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-l-xs pointer-events-none" />
-                </Link>
-              )}
-            </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/merchant/dashboard"
+                    className="relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-black text-[9px] sm:text-[11px] tracking-wider uppercase shadow-md shadow-amber-500/25 border-y border-dashed border-amber-700/50 rounded-xs -rotate-2 hover:rotate-0 hover:scale-105 transition-all duration-200 group shrink-0 select-none cursor-pointer font-poppins"
+                    title="Merchant Mode Active - Click to open Seller Dashboard"
+                  >
+                    <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-r-xs pointer-events-none" />
+                    <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-900 group-hover:scale-110 transition-transform" />
+                    <span className="font-bold tracking-wide">Merchant Mode</span>
+                    <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-700/30 rounded-l-xs pointer-events-none" />
+                  </Link>
 
-            {/* 2. Quick Access: Categories Dropdown */}
-            <div className="relative hidden sm:block" ref={categoriesMenuRef}>
-              <button
-                type="button"
-                onClick={() => setShowCategoriesMenu(!showCategoriesMenu)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-bold transition shadow-xs whitespace-nowrap font-poppins ${
-                  showCategoriesMenu
-                    ? 'bg-slate-200/90 border-slate-300 text-slate-900'
-                    : 'bg-slate-100/90 hover:bg-slate-200/80 border-slate-200 text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5 text-slate-500" />
-                <span>Categories</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showCategoriesMenu ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Categories Mega Dropdown Menu */}
-              {showCategoriesMenu && (
-                <div className="absolute top-full left-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-slate-200 p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="p-2 border-b border-slate-100 mb-1 flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      Browse Categories
-                    </span>
-                    <Link
-                      to="/products"
-                      onClick={() => setShowCategoriesMenu(false)}
-                      className="text-[11px] font-bold text-[#0066FF] hover:underline"
-                    >
-                      View All
-                    </Link>
-                  </div>
-
-                  <div className="space-y-1">
-                    {navCategories.map((cat) => {
-                      const Icon = cat.icon;
-                      return (
-                        <Link
-                          key={cat.name}
-                          to={`/products?category=${encodeURIComponent(cat.name)}`}
-                          onClick={() => setShowCategoriesMenu(false)}
-                          className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-50 transition group"
-                        >
-                          <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-blue-50 text-slate-600 group-hover:text-[#0066FF] flex items-center justify-center shrink-0 transition">
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-800 group-hover:text-[#0066FF] transition truncate">
-                              {cat.name}
-                            </p>
-                            <p className="text-[10px] text-slate-500 truncate">
-                              {cat.desc}
-                            </p>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-
-                  <div className="pt-2 mt-1 border-t border-slate-100">
-                    <Link
-                      to="/products?deal=true"
-                      onClick={() => setShowCategoriesMenu(false)}
-                      className="flex items-center gap-2 p-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100/80 text-amber-800 text-xs font-bold transition"
-                    >
-                      <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-                      <span>Today's Flash Deals & Discounts</span>
-                    </Link>
-                  </div>
+                  <Link
+                    to="/merchant/storefront"
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition shadow-xs font-poppins shrink-0"
+                    title="Preview your live store catalog as customers see it"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-600" />
+                    <span>View Live Store</span>
+                  </Link>
                 </div>
               )}
             </div>
+
+            {/* 2. Quick Access: All Products & Categories Dropdown (Customer Mode Only) */}
+            {!isMerchant && (
+              <div className="hidden sm:flex items-center gap-2">
+                {/* Direct All Products Button */}
+                <Link
+                  to="/products"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-slate-200 bg-slate-100/90 hover:bg-[#0066FF] text-slate-700 hover:text-white text-xs font-bold transition-all shadow-xs whitespace-nowrap font-poppins group"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5 text-slate-500 group-hover:text-white transition-colors" />
+                  <span>Products</span>
+                </Link>
+
+                {/* Categories Dropdown */}
+                <div className="relative" ref={categoriesMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoriesMenu(!showCategoriesMenu)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-bold transition shadow-xs whitespace-nowrap font-poppins ${
+                      showCategoriesMenu
+                        ? 'bg-slate-200/90 border-slate-300 text-slate-900'
+                        : 'bg-slate-100/90 hover:bg-slate-200/80 border-slate-200 text-slate-700 hover:text-slate-900'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Categories</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showCategoriesMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Categories Mega Dropdown Menu */}
+                  {showCategoriesMenu && (
+                    <div className="absolute top-full left-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-slate-200 p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="p-2 border-b border-slate-100 mb-1 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Browse Categories
+                        </span>
+                        <Link
+                          to="/products"
+                          onClick={() => setShowCategoriesMenu(false)}
+                          className="text-[11px] font-bold text-[#0066FF] hover:underline"
+                        >
+                          View All
+                        </Link>
+                      </div>
+
+                      <div className="space-y-1">
+                        {navCategories.map((cat) => {
+                          const Icon = cat.icon;
+                          return (
+                            <Link
+                              key={cat.name}
+                              to={`/products?category=${encodeURIComponent(cat.name)}`}
+                              onClick={() => setShowCategoriesMenu(false)}
+                              className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-50 transition group"
+                            >
+                              <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-blue-50 text-slate-600 group-hover:text-[#0066FF] flex items-center justify-center shrink-0 transition">
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-800 group-hover:text-[#0066FF] transition truncate">
+                                  {cat.name}
+                                </p>
+                                <p className="text-[10px] text-slate-500 truncate">
+                                  {cat.desc}
+                                </p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-2 mt-1 border-t border-slate-100">
+                        <Link
+                          to="/products?deal=true"
+                          onClick={() => setShowCategoriesMenu(false)}
+                          className="flex items-center gap-2 p-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100/80 text-amber-800 text-xs font-bold transition"
+                        >
+                          <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
+                          <span>Today's Flash Deals & Discounts</span>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 3. Enhanced Search */}
             <div className="flex-1 max-w-xl lg:max-w-2xl hidden md:block" ref={searchContainerRef}>
@@ -214,7 +262,7 @@ export const Navbar: React.FC = () => {
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}
-                  placeholder={isMerchant ? "Search catalog products, categories, SKU..." : "Search laptops, smartphones, headphones, RTX GPUs..."}
+                  placeholder={isMerchant ? "Search your store products (e.g. iPhone, RTX, SKU)..." : "Search laptops, smartphones, headphones, RTX GPUs..."}
                   className="w-full bg-slate-100/90 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15 rounded-full py-2.5 pl-11 pr-26 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none transition"
                 />
                 <button
@@ -225,30 +273,105 @@ export const Navbar: React.FC = () => {
                 </button>
 
                 {/* Live Search Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in duration-150">
+                {showSuggestions && searchQuery.trim() && (
+                  <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in duration-150 font-poppins">
                     <div className="p-2 space-y-1">
-                      <p className="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">
-                        Matching Electronics
-                      </p>
-                      {suggestions.map((item) => (
-                        <Link
-                          key={item._id}
-                          to={`/products/${item.slug}`}
-                          onClick={() => setShowSuggestions(false)}
-                          className="flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 transition"
-                        >
-                          <img
-                            src={item.thumbnail}
-                            alt={item.title}
-                            className="w-10 h-10 object-cover rounded-xl bg-slate-100 border border-slate-200 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-slate-800 truncate">{item.title}</p>
-                            <p className="text-[11px] text-[#0066FF] font-bold">₹{item.price.toLocaleString('en-IN')}</p>
+                      <div className="flex items-center justify-between px-3 py-1 border-b border-slate-100 mb-1">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          {isMerchant ? `Your Store Listings (${suggestions.length})` : 'Matching Electronics'}
+                        </p>
+                        {isMerchant && (
+                          <span className="text-[10px] font-semibold text-[#0066FF] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                            Merchant Scoped
+                          </span>
+                        )}
+                      </div>
+
+                      {suggestions.length > 0 ? (
+                        suggestions.map((item) => (
+                          <div
+                            key={item._id}
+                            className="flex items-center justify-between gap-3 p-2 rounded-2xl hover:bg-slate-50 transition group"
+                          >
+                            <Link
+                              to={`/products/${item.slug || item._id}`}
+                              onClick={() => setShowSuggestions(false)}
+                              className="flex items-center gap-3 flex-1 min-w-0"
+                            >
+                              <img
+                                src={item.thumbnail}
+                                alt={item.title}
+                                className="w-10 h-10 object-cover rounded-xl bg-slate-100 border border-slate-200 shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate group-hover:text-[#0066FF] transition">
+                                  {item.title}
+                                </p>
+                                <div className="flex items-center gap-2 text-[11px]">
+                                  <span className="text-[#0066FF] font-mono font-bold">
+                                    ₹{item.price.toLocaleString('en-IN')}
+                                  </span>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-slate-500 font-medium text-[10px]">
+                                    {item.category}
+                                  </span>
+                                </div>
+                              </div>
+                            </Link>
+
+                            {isMerchant ? (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setShowSuggestions(false);
+                                    navigate(`/merchant/dashboard?tab=products&editProductId=${item._id}`);
+                                  }}
+                                  className="px-2.5 py-1 rounded-xl bg-blue-50 hover:bg-[#0066FF] text-[#0066FF] hover:text-white border border-blue-200 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                  title="Edit this product in Product Studio"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
+                                <Link
+                                  to={`/products/${item.slug || item._id}`}
+                                  onClick={() => setShowSuggestions(false)}
+                                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                                  title="View Customer Product Page"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Link>
+                              </div>
+                            ) : (
+                              <Link
+                                to={`/products/${item.slug || item._id}`}
+                                onClick={() => setShowSuggestions(false)}
+                                className="text-xs font-bold text-[#0066FF] px-2 py-1 hover:underline"
+                              >
+                                View
+                              </Link>
+                            )}
                           </div>
-                        </Link>
-                      ))}
+                        ))
+                      ) : (
+                        <div className="p-4 text-center space-y-2">
+                          <p className="text-xs text-slate-500 font-medium">
+                            {isMerchant
+                              ? `No products in your store match "${searchQuery}".`
+                              : `No products found matching "${searchQuery}".`}
+                          </p>
+                          {isMerchant && (
+                            <Link
+                              to="/merchant/dashboard?tab=products"
+                              onClick={() => setShowSuggestions(false)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0066FF] text-white text-xs font-bold shadow-xs hover:bg-blue-600 transition"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Add New Product</span>
+                            </Link>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -299,14 +422,24 @@ export const Navbar: React.FC = () => {
                   </Link>
                 </>
               ) : (
-                /* Merchant Shortcut: Quick Dashboard Pill */
-                <Link
-                  to="/merchant/dashboard"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 hover:bg-[#0066FF] border border-blue-200 hover:border-[#0066FF] text-[#0066FF] hover:text-white text-xs font-bold transition-all shadow-xs group font-poppins"
-                >
-                  <LayoutDashboard className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                  <span>Dashboard</span>
-                </Link>
+                /* Merchant Shortcut: Quick Storefront & Dashboard Pills */
+                <div className="hidden sm:flex items-center gap-2">
+                  <Link
+                    to="/merchant/storefront"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold transition shadow-xs group font-poppins"
+                    title="Live Store Preview"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-800 transition-colors" />
+                    <span>Storefront</span>
+                  </Link>
+                  <Link
+                    to="/merchant/dashboard"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 hover:bg-[#0066FF] border border-blue-200 hover:border-[#0066FF] text-[#0066FF] hover:text-white text-xs font-bold transition-all shadow-xs group font-poppins"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Dashboard</span>
+                  </Link>
+                </div>
               )}
 
               {/* 6. Primary CTA / User Dropdown */}
@@ -344,40 +477,61 @@ export const Navbar: React.FC = () => {
               </button>
             </form>
 
-            <div className="space-y-1 pt-1">
-              <Link
-                to="/products"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#0066FF] font-bold hover:bg-slate-50"
-              >
-                <Zap className="w-4 h-4" />
-                <span>All Electronics Catalog</span>
-              </Link>
+            {isMerchant ? (
+              <div className="space-y-1 pt-1 font-poppins">
+                <Link
+                  to="/merchant/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-slate-900 bg-amber-100 hover:bg-amber-200/80 font-black text-sm transition"
+                >
+                  <Store className="w-4 h-4 text-amber-800" />
+                  <span>Seller Operations Dashboard</span>
+                </Link>
+                <Link
+                  to="/merchant/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-bold text-sm transition"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-slate-500" />
+                  <span>Merchant Store Profile</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-1 pt-1">
+                <Link
+                  to="/products"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#0066FF] font-bold hover:bg-slate-50 text-sm"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Products (All Categories)</span>
+                </Link>
 
-              {navCategories.map((cat) => {
-                const Icon = cat.icon;
-                return (
-                  <Link
-                    key={cat.name}
-                    to={`/products?category=${encodeURIComponent(cat.name)}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium"
-                  >
-                    <Icon className="w-4 h-4 text-slate-400" />
-                    <span>{cat.name}</span>
-                  </Link>
-                );
-              })}
+                {navCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  return (
+                    <Link
+                      key={cat.name}
+                      to={`/products?category=${encodeURIComponent(cat.name)}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium"
+                    >
+                      <Icon className="w-4 h-4 text-slate-400" />
+                      <span>{cat.name}</span>
+                    </Link>
+                  );
+                })}
 
-              <Link
-                to="/products?deal=true"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-700 bg-amber-50 font-bold text-sm"
-              >
-                <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-                <span>Today's Lightning Deals</span>
-              </Link>
-            </div>
+                <Link
+                  to="/products?deal=true"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-700 bg-amber-50 font-bold text-sm"
+                >
+                  <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  <span>Today's Lightning Deals</span>
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

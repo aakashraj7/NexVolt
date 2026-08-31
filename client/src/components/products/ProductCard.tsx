@@ -1,17 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ShoppingCart, Heart, Zap, Check, Trash2 } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Zap, Check, Trash2, ArrowRight } from 'lucide-react';
 import type { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useUser } from '@clerk/clerk-react';
+import { api } from '../../lib/api';
 
 interface ProductCardProps {
   product: Product;
+  isMerchantView?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, isMerchantView }) => {
+  const { user, isSignedIn } = useUser();
+  const [isMerchant, setIsMerchant] = useState(isMerchantView ?? false);
   const { addToCart, removeFromCart, isInCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+
+  useEffect(() => {
+    if (isMerchantView !== undefined) {
+      setIsMerchant(isMerchantView);
+      return;
+    }
+    if (isSignedIn && user) {
+      api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress).then((res) => {
+        if (res?.isMerchant === true || res?.role === 'merchant') {
+          setIsMerchant(true);
+        }
+      }).catch(() => {});
+    }
+  }, [isSignedIn, user, isMerchantView]);
 
   const isFavorited = isInWishlist(product._id);
   const itemInCart = isInCart(product._id);
@@ -29,22 +48,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleWishlist(product);
-            }}
-            className={`p-2 rounded-full border transition-all ${
-              isFavorited
-                ? 'bg-rose-500 text-white border-rose-400 shadow-md'
-                : 'bg-white/90 text-slate-400 hover:text-rose-500 border-slate-200 hover:border-rose-200 shadow-sm'
-            }`}
-            title={isFavorited ? 'Remove from Wishlist' : 'Add to Wishlist'}
-          >
-            <Heart className={`w-4 h-4 ${isFavorited ? 'fill-white' : ''}`} />
-          </button>
+          {!isMerchant && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleWishlist(product);
+              }}
+              className={`p-2 rounded-full border transition-all ${
+                isFavorited
+                  ? 'bg-rose-500 text-white border-rose-400 shadow-md'
+                  : 'bg-white/90 text-slate-400 hover:text-rose-500 border-slate-200 hover:border-rose-200 shadow-sm'
+              }`}
+              title={isFavorited ? 'Remove from Wishlist' : 'Add to Wishlist'}
+            >
+              <Heart className={`w-4 h-4 ${isFavorited ? 'fill-white' : ''}`} />
+            </button>
+          )}
         </div>
 
         {/* Product Image Link */}
@@ -103,34 +124,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           </div>
 
-          {/* Quick Add / Remove Cart Toggle Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (itemInCart) {
-                removeFromCart(product._id);
-              } else {
-                addToCart(product, 1);
-              }
-            }}
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 group/btn ${
-              itemInCart
-                ? 'bg-gradient-to-tr from-[#0066FF] to-[#0052CC] hover:from-rose-600 hover:to-rose-700 text-white shadow-md shadow-blue-500/25 hover:shadow-rose-500/25 border border-blue-500/20'
-                : 'bg-slate-100/90 hover:bg-[#0066FF] text-slate-700 hover:text-white border border-slate-200/90 hover:border-[#0066FF] shadow-2xs hover:shadow-md hover:shadow-blue-500/20'
-            }`}
-            title={itemInCart ? 'In Cart • Click to remove' : 'Add to Shopping Cart'}
-          >
-            {itemInCart ? (
-              <>
-                <Check className="w-4 h-4 stroke-[2.5] group-hover/btn:hidden" />
-                <Trash2 className="w-4 h-4 hidden group-hover/btn:block" />
-              </>
-            ) : (
-              <ShoppingCart className="w-4 h-4 transition-transform group-hover/btn:scale-110" />
-            )}
-          </button>
+          {/* Cart Button for Customers vs View Details for Merchants */}
+          {!isMerchant ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (itemInCart) {
+                  removeFromCart(product._id);
+                } else {
+                  addToCart(product, 1);
+                }
+              }}
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 group/btn ${
+                itemInCart
+                  ? 'bg-gradient-to-tr from-[#0066FF] to-[#0052CC] hover:from-rose-600 hover:to-rose-700 text-white shadow-md shadow-blue-500/25 hover:shadow-rose-500/25 border border-blue-500/20'
+                  : 'bg-slate-100/90 hover:bg-[#0066FF] text-slate-700 hover:text-white border border-slate-200/90 hover:border-[#0066FF] shadow-2xs hover:shadow-md hover:shadow-blue-500/20'
+              }`}
+              title={itemInCart ? 'In Cart • Click to remove' : 'Add to Shopping Cart'}
+            >
+              {itemInCart ? (
+                <>
+                  <Check className="w-4 h-4 stroke-[2.5] group-hover/btn:hidden" />
+                  <Trash2 className="w-4 h-4 hidden group-hover/btn:block" />
+                </>
+              ) : (
+                <ShoppingCart className="w-4 h-4 transition-transform group-hover/btn:scale-110" />
+              )}
+            </button>
+          ) : (
+            <Link
+              to={`/products/${product.slug || product._id}`}
+              className="px-3 py-1.5 rounded-xl bg-slate-100/90 hover:bg-[#0066FF] text-slate-700 hover:text-white border border-slate-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs group/btn"
+              title="View Product Details"
+            >
+              <span>View</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+            </Link>
+          )}
         </div>
       </div>
     </div>

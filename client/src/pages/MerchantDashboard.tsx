@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
@@ -18,12 +18,173 @@ import {
   X,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  Truck,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, Order } from '../types';
 import { useToast } from '../context/ToastContext';
 import { ProductStudioModal } from '../components/merchant/ProductStudioModal';
+
+export const FULFILLMENT_STATUSES = [
+  {
+    id: 'Confirmed',
+    label: 'Confirmed',
+    desc: 'Order verified & confirmed',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    icon: CheckCircle2
+  },
+  {
+    id: 'Packed',
+    label: 'Packed',
+    desc: 'Packed & ready for dispatch',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    icon: Package
+  },
+  {
+    id: 'In-Transit',
+    label: 'In-Transit',
+    desc: 'Handed to courier, on the way',
+    badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    icon: Truck
+  },
+  {
+    id: 'Delivered',
+    label: 'Delivered',
+    desc: 'Delivered to customer',
+    badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    icon: CheckCircle2
+  }
+];
+
+const getCustomerInitials = (name?: string) => {
+  if (!name) return 'C';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+const getAvatarColor = (name?: string) => {
+  const colors = [
+    'bg-blue-100 text-[#0066FF]',
+    'bg-purple-100 text-purple-700',
+    'bg-sky-100 text-sky-700',
+    'bg-indigo-100 text-indigo-700',
+    'bg-emerald-100 text-emerald-700'
+  ];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name!.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
+const OrderStatusDropdown: React.FC<{
+  order: Order;
+  onUpdate: (orderId: string, status: string) => Promise<void>;
+}> = ({ order, onUpdate }) => {
+  const [open, setOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  const currentStatus = order.orderStatus || (order.paymentStatus === 'delivered' ? 'Delivered' : order.paymentStatus === 'shipped' ? 'In-Transit' : 'Confirmed');
+  const activeConfig = FULFILLMENT_STATUSES.find(s => s.id.toLowerCase() === currentStatus.toLowerCase()) || FULFILLMENT_STATUSES[0];
+
+  const handleSelect = async (e: React.MouseEvent, statusId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+    if (statusId.toLowerCase() === currentStatus.toLowerCase()) return;
+    setUpdating(true);
+    try {
+      await onUpdate(order.orderId, statusId);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(prev => !prev);
+  };
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        disabled={updating}
+        onClick={handleToggle}
+        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0066FF] hover:bg-blue-600 active:bg-blue-700 text-white font-semibold text-xs transition-all shadow-xs cursor-pointer select-none active:scale-95 disabled:opacity-60"
+        title="Change Order Status"
+      >
+        {updating ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Eye className="w-3.5 h-3.5" />
+        )}
+        <span>{activeConfig.label}</span>
+        <ChevronDown className={`w-3 h-3 ml-0.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 font-poppins"
+        >
+          <div className="px-2.5 py-1.5 border-b border-slate-100 mb-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Change Order Status
+            </span>
+          </div>
+          <div className="space-y-1">
+            {FULFILLMENT_STATUSES.map((item) => {
+              const Icon = item.icon;
+              const isSelected = item.id.toLowerCase() === currentStatus.toLowerCase();
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={(e) => handleSelect(e, item.id)}
+                  className={`w-full text-left p-2 rounded-xl transition flex items-center justify-between gap-2 text-xs font-medium cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-50/80 text-[#0066FF] font-bold'
+                      : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border ${
+                      isSelected ? 'bg-[#0066FF] text-white border-[#0066FF]' : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs truncate leading-tight">{item.label}</p>
+                      <p className="text-[10px] text-slate-400 truncate leading-tight">{item.desc}</p>
+                    </div>
+                  </div>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-[#0066FF] stroke-[3]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const MerchantDashboard: React.FC = () => {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -32,6 +193,9 @@ export const MerchantDashboard: React.FC = () => {
   const { showToast } = useToast();
 
   const tabParam = searchParams.get('tab');
+  const searchParam = searchParams.get('search') || '';
+  const editProductIdParam = searchParams.get('editProductId');
+
   const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'recovery'>(
     tabParam === 'orders' || tabParam === 'recovery' ? tabParam : 'products'
   );
@@ -53,6 +217,18 @@ export const MerchantDashboard: React.FC = () => {
   // Product Studio Modal states
   const [showStudioModal, setShowStudioModal] = useState(false);
   const [selectedEditingProduct, setSelectedEditingProduct] = useState<Product | null>(null);
+
+  // Auto-open product edit modal if editProductIdParam is present in URL
+  useEffect(() => {
+    if (editProductIdParam && products.length > 0) {
+      const targetProd = products.find(p => p._id === editProductIdParam);
+      if (targetProd) {
+        setSelectedEditingProduct(targetProd);
+        setShowStudioModal(true);
+        setActiveTab('products');
+      }
+    }
+  }, [editProductIdParam, products]);
 
   const loadData = async () => {
     if (!user) return;
@@ -138,15 +314,34 @@ export const MerchantDashboard: React.FC = () => {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, paymentStatus: string) => {
+  const handleUpdateOrderStatus = async (orderId: string, orderStatus: string) => {
+    // 1. Optimistic UI update immediately
+    setOrders(prev =>
+      prev.map(o =>
+        o.orderId === orderId
+          ? {
+              ...o,
+              orderStatus,
+              paymentStatus: orderStatus === 'Delivered' ? 'delivered' : orderStatus === 'In-Transit' ? 'shipped' : o.paymentStatus
+            }
+          : o
+      )
+    );
     try {
-      await api.updateOrderStatus(orderId, paymentStatus);
-      showToast(`Order status updated to ${paymentStatus}`, 'success');
+      await api.updateOrderStatus(orderId, { orderStatus });
+      showToast(`Order status updated to "${orderStatus}"`, 'success');
       loadData();
     } catch {
       showToast('Failed to update order status', 'error');
+      loadData();
     }
   };
+
+  // Filter out unpaid / incomplete checkouts (initiated or abandoned online sessions)
+  const validStoreOrders = orders.filter(o => 
+    o.checkoutStatus !== 'initiated' && 
+    o.checkoutStatus !== 'abandoned'
+  );
 
   const abandonedCheckouts = orders.filter(o => o.checkoutStatus === 'abandoned');
   const recoveredOrders = orders.filter(o => o.checkoutStatus === 'recovered');
@@ -188,10 +383,11 @@ export const MerchantDashboard: React.FC = () => {
             <span>Add New Product</span>
           </button>
           <Link
-            to="/products"
-            className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 font-bold text-xs shadow-xs transition font-poppins"
+            to="/merchant/storefront"
+            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs shadow-xs transition flex items-center gap-1.5 font-poppins"
           >
-            View Live Store
+            <Eye className="w-4 h-4 text-slate-600" />
+            <span>View Live Store</span>
           </Link>
         </div>
       </div>
@@ -221,10 +417,10 @@ export const MerchantDashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-extrabold text-slate-900 font-mono">
-            {stats?.totalOrders || orders.length}
+            {validStoreOrders.length}
           </p>
           <p className="text-[11px] text-slate-500 font-poppins font-medium">
-            {stats?.completedOrders || 0} completed & dispatched
+            {validStoreOrders.filter(o => (o.orderStatus === 'Delivered' || o.paymentStatus === 'delivered')).length} completed & delivered
           </p>
         </div>
 
@@ -289,7 +485,7 @@ export const MerchantDashboard: React.FC = () => {
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Store Orders ({orders.length})</span>
+            <span>Store Orders ({validStoreOrders.length})</span>
           </button>
 
           <button
@@ -303,187 +499,318 @@ export const MerchantDashboard: React.FC = () => {
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-purple-600" />
+            <Sparkles className="w-4 h-4" />
             <span>AI Revenue Recovery Agent</span>
           </button>
         </div>
       </div>
 
-      {/* Tab 1: Products Catalog */}
+      {/* Tab 1: Store Catalog Products */}
       {activeTab === 'products' && (
         <div className="bg-white/50 backdrop-blur-2xl rounded-3xl border border-white/70 shadow-2xl shadow-blue-500/10 overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-[#0066FF]" />
-              <span>Loading products...</span>
+              <Loader2 className="w-7 h-7 animate-spin text-[#0066FF]" />
+              <span className="font-bold text-slate-700">Loading catalog items...</span>
             </div>
-          ) : products.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-3.5">Product</th>
-                    <th className="px-4 py-3.5">Category</th>
-                    <th className="px-4 py-3.5">Price</th>
-                    <th className="px-4 py-3.5">Rating</th>
-                    <th className="px-6 py-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {products.map((p) => (
-                    <tr key={p._id} className="hover:bg-slate-50/70 transition">
-                      <td className="px-6 py-4 flex items-center gap-3">
-                        <img
-                          src={p.thumbnail}
-                          alt={p.title}
-                          className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <Link to={`/products/${p.slug}`} className="font-bold text-slate-900 hover:text-[#0066FF] block truncate max-w-xs font-poppins">
-                            {p.title}
-                          </Link>
-                          <span className="text-[10px] uppercase font-bold text-[#0066FF] font-poppins">{p.brand}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">{p.category}</td>
-                      <td className="px-4 py-4 font-mono font-bold text-slate-900">
-                        ₹{p.price.toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-4 py-4 font-bold text-amber-600">
-                        ★ {p.rating}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenEditProduct(p)}
-                            className="p-2 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-[#0066FF] text-slate-600 transition cursor-pointer"
-                            title="Edit Product"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduct(p._id, p.title)}
-                            className="p-2 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition cursor-pointer"
-                            title="Delete Product"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200/80 shadow-md">
-                <Package className="w-8 h-8" />
-              </div>
-              <div className="max-w-md space-y-1">
-                <h3 className="text-base font-extrabold text-slate-900 font-poppins">No Products in Your Catalog Yet</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  As a newly registered NexVolt merchant, publish your first electronics listing to make it immediately visible to verified buyers across India.
-                </p>
+          ) : searchParam && (
+            <div className="p-4 bg-blue-50/70 border-b border-blue-100 flex items-center justify-between gap-4 font-poppins">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-bold text-slate-700">Filtering catalog for:</span>
+                <span className="px-3 py-1 rounded-full bg-[#0066FF] text-white font-bold text-xs shadow-2xs">
+                  "{searchParam}"
+                </span>
               </div>
               <button
-                onClick={handleOpenAddProduct}
-                className="mt-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer font-poppins"
+                type="button"
+                onClick={() => setSearchParams({ tab: 'products' })}
+                className="text-xs font-bold text-[#0066FF] hover:underline cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
-                <span>Add Your First Product</span>
+                Clear Search Filter
               </button>
             </div>
           )}
+
+          {(() => {
+            const filteredCatalog = searchParam
+              ? products.filter(
+                  p =>
+                    p.title.toLowerCase().includes(searchParam.toLowerCase()) ||
+                    p.brand.toLowerCase().includes(searchParam.toLowerCase()) ||
+                    p.category.toLowerCase().includes(searchParam.toLowerCase())
+                )
+              : products;
+
+            return filteredCatalog.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-700 font-poppins">
+                  <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-3.5">Product Title & Brand</th>
+                      <th className="px-4 py-3.5">Category</th>
+                      <th className="px-4 py-3.5">Price & MRP</th>
+                      <th className="px-4 py-3.5">Discount</th>
+                      <th className="px-4 py-3.5">Rating & Reviews</th>
+                      <th className="px-6 py-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {filteredCatalog.map((p) => (
+                      <tr key={p._id} className="hover:bg-slate-50/70 transition">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={p.thumbnail}
+                              alt={p.title}
+                              className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shadow-2xs shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-900 line-clamp-1 max-w-[260px] text-xs">
+                                {p.title}
+                              </p>
+                              <p className="text-[11px] text-[#0066FF] font-bold uppercase">
+                                {p.brand}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
+                            {p.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 font-mono font-bold text-slate-900">
+                          <div>₹{p.price.toLocaleString('en-IN')}</div>
+                          {p.originalPrice > p.price && (
+                            <span className="text-[10px] text-slate-400 line-through">
+                              ₹{p.originalPrice.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 font-mono">
+                          {p.discountPercent > 0 ? (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 font-bold text-[10px] border border-rose-200">
+                              {p.discountPercent}% OFF
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1 text-amber-500 font-bold">
+                            <span>★</span>
+                            <span className="text-slate-800 text-xs">{p.rating || '4.8'}</span>
+                            <span className="text-slate-400 font-normal text-[10px]">
+                              ({p.numReviews || 0})
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditProduct(p)}
+                              className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                              title="Edit product in Studio"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProduct(p._id, p.title)}
+                              className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition cursor-pointer"
+                              title="Delete product"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 text-[#0066FF] flex items-center justify-center border border-blue-200/80 shadow-md">
+                  <Package className="w-8 h-8" />
+                </div>
+                <div className="max-w-md space-y-1">
+                  <h3 className="text-base font-extrabold text-slate-900 font-poppins">
+                    {searchParam ? 'No Matching Products Found' : 'No Products in Your Catalog Yet'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {searchParam
+                      ? `No products in your catalog match "${searchParam}".`
+                      : 'As a newly registered NexVolt merchant, publish your first electronics listing to make it immediately visible to verified buyers across India.'}
+                  </p>
+                </div>
+                {searchParam ? (
+                  <button
+                    onClick={() => setSearchParams({ tab: 'products' })}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                  >
+                    Clear Search Filter
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleOpenAddProduct}
+                    className="px-5 py-2.5 rounded-xl bg-[#0066FF] hover:bg-blue-600 text-white font-bold text-xs shadow-md transition cursor-pointer"
+                  >
+                    + Add New Product
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
       {/* Tab 2: Store Orders */}
       {activeTab === 'orders' && (
-        <div className="bg-white/50 backdrop-blur-2xl rounded-3xl border border-white/70 shadow-2xl shadow-blue-500/10 overflow-hidden">
-          {orders.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden font-poppins">
+          {validStoreOrders.length > 0 ? (
+            <div className="w-full">
+              <table className="w-full table-fixed text-left text-xs">
+                <colgroup>
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[24%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[26%]" />
+                </colgroup>
+                <thead className="bg-white text-slate-400 font-bold uppercase text-[11px] tracking-wider border-b border-slate-100">
                   <tr>
-                    <th className="px-6 py-3.5">Order ID</th>
-                    <th className="px-4 py-3.5">Customer</th>
-                    <th className="px-4 py-3.5">Items Ordered</th>
-                    <th className="px-4 py-3.5">Total Amount</th>
-                    <th className="px-4 py-3.5">Payment</th>
-                    <th className="px-6 py-3.5 text-right">Actions</th>
+                    <th className="px-5 py-4 truncate">ORDER ID</th>
+                    <th className="px-4 py-4 truncate">CUSTOMER</th>
+                    <th className="px-4 py-4 truncate">ITEMS ORDERED</th>
+                    <th className="px-4 py-4 truncate">TOTAL AMOUNT</th>
+                    <th className="px-5 py-4 text-center truncate">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {orders.map((o) => (
-                    <tr key={o.orderId} className="hover:bg-slate-50/70 transition">
-                      <td className="px-6 py-4 font-mono font-bold text-slate-900">
-                        {o.orderId}
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-900">{o.customerDetails?.name || 'Customer'}</p>
-                        <p className="text-[11px] text-slate-500">{o.customerDetails?.email}</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {o.items?.slice(0, 3).map((item: any, idx: number) => (
-                              <img
-                                key={idx}
-                                src={item.thumbnail || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&q=80'}
-                                alt={item.title}
-                                title={`${item.title} (x${item.quantity})`}
-                                className="w-9 h-9 rounded-lg object-cover bg-slate-100 border border-slate-200 shadow-2xs shrink-0"
-                              />
-                            ))}
-                            {o.items && o.items.length > 3 && (
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                                +{o.items.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] font-semibold text-slate-800 line-clamp-1 max-w-[220px]">
-                            {o.items?.map(i => `${i.quantity}x ${i.title}`).join(', ')}
+                  {validStoreOrders.map((o) => {
+                    const isCOD = o.paymentMethod?.toLowerCase().includes('delivery') || o.paymentMethod?.toLowerCase().includes('cod');
+                    const customerName = o.customerDetails?.name || 'Customer';
+                    const customerEmail = o.customerDetails?.email || '';
+                    const initials = getCustomerInitials(customerName);
+                    const avatarClass = getAvatarColor(customerName);
+
+                    const totalItemsCount = o.items?.reduce((acc, i) => acc + (i.quantity || 1), 0) || 1;
+                    const firstItem = o.items?.[0];
+
+                    return (
+                      <tr key={o.orderId} className="hover:bg-slate-50/50 transition">
+                        {/* 1. ORDER ID */}
+                        <td className="px-5 py-4.5 align-middle">
+                          <p className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight font-mono truncate" title={o.orderId}>
+                            {o.orderId}
                           </p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 font-mono font-bold text-slate-900">
-                        ₹{o.totalAmount?.toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          o.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {o.paymentStatus}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrderDetails(o)}
-                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                            title="View Full Order Details"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>View Details</span>
-                          </button>
-                          <select
-                            value={o.paymentStatus}
-                            onChange={(e) => handleUpdateOrderStatus(o.orderId, e.target.value)}
-                            className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none font-medium cursor-pointer"
-                          >
-                            <option value="paid">Paid & Verified</option>
-                            <option value="pending">Pending</option>
-                            <option value="shipped">Dispatched (Express)</option>
-                            <option value="delivered">Delivered</option>
-                          </select>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            {o.createdAt
+                              ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+                                ', ' +
+                                new Date(o.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : '31 May 2025, 10:24 AM'}
+                          </p>
+                        </td>
+
+                        {/* 2. CUSTOMER */}
+                        <td className="px-4 py-4.5 align-middle">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${avatarClass}`}>
+                              {initials}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={customerName}>{customerName}</p>
+                              <p className="text-[11px] text-slate-400 truncate" title={customerEmail}>{customerEmail}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 3. ITEMS ORDERED */}
+                        <td className="px-4 py-4.5 align-middle">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-center gap-1 shrink-0">
+                              {o.items?.slice(0, 2).map((item: any, idx: number) => (
+                                <img
+                                  key={idx}
+                                  src={item.thumbnail || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&q=80'}
+                                  alt={item.title}
+                                  title={`${item.title} (x${item.quantity || 1})`}
+                                  className="w-8 h-8 rounded-lg object-cover bg-slate-50 border border-slate-200/80 shadow-2xs shrink-0"
+                                />
+                              ))}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-slate-900 text-xs truncate block" title={firstItem?.title}>
+                                {firstItem ? `${firstItem.quantity || 1}x ${firstItem.title}` : '1x Product Item'}
+                              </p>
+                              <span className="inline-block bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5 rounded mt-0.5">
+                                {totalItemsCount} {totalItemsCount === 1 ? 'Item' : 'Items'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 4. TOTAL AMOUNT */}
+                        <td className="px-4 py-4.5 align-middle">
+                          <div className="font-bold text-slate-900 text-xs sm:text-sm font-sans truncate">
+                            ₹{o.totalAmount?.toLocaleString('en-IN')}
+                          </div>
+                          {isCOD ? (
+                            <div className="mt-0.5 truncate">
+                              <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider inline-block">
+                                COD
+                              </span>
+                              <span className="text-[9px] font-semibold text-slate-400 tracking-wider block mt-0.5 uppercase truncate">
+                                PAY ON DELIVERY
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mt-0.5 truncate">
+                              RAZORPAY
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 5. ACTIONS (Center Aligned with generous breathing room on both sides) */}
+                        <td className="px-5 py-4.5 align-middle text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <OrderStatusDropdown order={o} onUpdate={handleUpdateOrderStatus} />
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderDetails(o)}
+                              className="px-3 py-1.5 rounded-xl border border-blue-200 bg-white hover:bg-blue-50/80 text-[#0066FF] font-semibold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                              title="View Full Order Details"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[#0066FF]" />
+                              <span>View Details</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+
+              {/* Bottom Pagination Bar */}
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-white text-xs font-medium text-slate-500">
+                <span>Page 1 of 1</span>
+                <div className="flex items-center gap-1.5">
+                  <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-40" disabled>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button className="w-8 h-8 rounded-lg bg-[#0066FF] text-white font-bold flex items-center justify-center shadow-xs">
+                    1
+                  </button>
+                  <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-40" disabled>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-3">
@@ -493,7 +820,7 @@ export const MerchantDashboard: React.FC = () => {
               <div className="max-w-md space-y-1">
                 <h3 className="text-base font-extrabold text-slate-900 font-poppins">No Store Orders Received Yet</h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  Whenever a customer places an order for your electronics items, the full shipping details and order items will appear here for you to fulfill.
+                  Whenever a customer places and confirms an order for your electronics items, the full shipping details and order items will appear here for you to fulfill.
                 </p>
               </div>
             </div>
@@ -556,19 +883,19 @@ export const MerchantDashboard: React.FC = () => {
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                 {recoveredOrders.length > 0 ? (
                   recoveredOrders.map((o) => (
-                    <div key={o.orderId} className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 text-xs flex items-center justify-between">
+                    <div key={o.orderId} className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs flex items-center justify-between">
                       <div>
                         <p className="font-bold text-slate-900 font-mono">{o.orderId}</p>
                         <p className="text-slate-500 text-[11px]">{o.customerDetails?.email}</p>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-emerald-700 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-emerald-600 font-bold font-poppins">Revenue Saved by AI</span>
+                        <span className="block text-[10px] text-emerald-600 font-semibold font-poppins">Successfully Recovered</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400 py-6 text-center">AI recovery agent actively monitoring customer sessions.</p>
+                  <p className="text-xs text-slate-400 py-6 text-center">No recovered orders recorded yet.</p>
                 )}
               </div>
             </div>
@@ -576,23 +903,27 @@ export const MerchantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Order Full Breakdown & Customer Details Modal */}
+      {/* Order Details Sliding / Modal Dialog */}
       {selectedOrderDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 font-poppins">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 font-poppins">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden animate-toast-in p-6 space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-mono">Order Details</span>
                 <h2 className="text-xl font-black text-slate-900 font-heading flex items-center gap-2">
                   <span>{selectedOrderDetails.orderId}</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
-                    selectedOrderDetails.paymentStatus === 'paid'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}>
-                    {selectedOrderDetails.paymentStatus}
-                  </span>
+                  {(() => {
+                    const currentStatus = selectedOrderDetails.orderStatus || (selectedOrderDetails.paymentStatus === 'delivered' ? 'Delivered' : selectedOrderDetails.paymentStatus === 'shipped' ? 'In-Transit' : 'Confirmed');
+                    const config = FULFILLMENT_STATUSES.find(s => s.id.toLowerCase() === currentStatus.toLowerCase()) || FULFILLMENT_STATUSES[0];
+                    const Icon = config.icon;
+                    return (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${config.badgeClass}`}>
+                        <Icon className="w-3 h-3" />
+                        <span>{config.label}</span>
+                      </span>
+                    );
+                  })()}
                 </h2>
               </div>
               <button
@@ -670,19 +1001,13 @@ export const MerchantDashboard: React.FC = () => {
 
               <div className="w-full sm:w-auto space-y-1.5">
                 <label className="block text-[11px] font-bold text-slate-700">Update Fulfillment Status:</label>
-                <select
-                  value={selectedOrderDetails.paymentStatus}
-                  onChange={(e) => {
-                    handleUpdateOrderStatus(selectedOrderDetails.orderId, e.target.value);
-                    setSelectedOrderDetails({ ...selectedOrderDetails, paymentStatus: e.target.value as any });
+                <OrderStatusDropdown
+                  order={selectedOrderDetails}
+                  onUpdate={async (id, st) => {
+                    await handleUpdateOrderStatus(id, st);
+                    setSelectedOrderDetails({ ...selectedOrderDetails, orderStatus: st });
                   }}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none cursor-pointer shadow-2xs"
-                >
-                  <option value="paid">Paid & Verified (Preparing)</option>
-                  <option value="pending">Pending</option>
-                  <option value="shipped">Dispatched (Express)</option>
-                  <option value="delivered">Delivered</option>
-                </select>
+                />
               </div>
             </div>
 

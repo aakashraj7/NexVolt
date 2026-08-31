@@ -48,8 +48,13 @@ const orderSchema = new mongoose.Schema({
   failureReason: { type: String, default: '' },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'failed', 'refunded'],
+    enum: ['pending', 'paid', 'failed', 'refunded', 'shipped', 'delivered'],
     default: 'pending'
+  },
+  orderStatus: {
+    type: String,
+    enum: ['Confirmed', 'Packed', 'In-Transit', 'Delivered'],
+    default: 'Confirmed'
   },
   merchantNotified: { type: Boolean, default: true },
   // Revenue Recovery Tracking fields (Track 3)

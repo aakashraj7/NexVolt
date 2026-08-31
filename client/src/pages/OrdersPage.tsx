@@ -47,46 +47,63 @@ export const OrdersPage: React.FC = () => {
       return;
     }
 
-    const isDelivered = trackingOrder.paymentStatus === 'delivered';
+    const statusNormalized = (trackingOrder.orderStatus || trackingOrder.paymentStatus || 'Confirmed').toLowerCase();
+    const isDelivered = statusNormalized === 'delivered';
+    const isShipped = statusNormalized === 'in-transit' || statusNormalized === 'shipped';
+    const isPacked = statusNormalized === 'packed';
 
-    // Initial reset
+    let targetLevel = 1;
+    if (isDelivered) targetLevel = 4;
+    else if (isShipped) targetLevel = 3;
+    else if (isPacked) targetLevel = 2;
+    else targetLevel = 1;
+
+    // Reset initial
     setTrackAnimState({ 1: 'clock', 2: 'pending', 3: 'pending', 4: 'pending' });
     setTrackLineWidth(0);
 
-    // Stage 1: Confirmed (0 - 450ms)
+    // Stage 1: Confirmed (0 - 300ms)
     const t1 = setTimeout(() => {
-      setTrackAnimState(prev => ({ ...prev, 1: 'done', 2: 'clock' }));
-      setTrackLineWidth(33);
-    }, 450);
-
-    // Stage 2: Packed (450ms - 950ms)
-    const t2 = setTimeout(() => {
       setTrackAnimState(prev => ({
         ...prev,
-        2: 'done',
-        3: isDelivered ? 'done' : 'clock'
+        1: 'done',
+        2: targetLevel >= 2 ? 'clock' : 'pending'
       }));
-      setTrackLineWidth(66);
-    }, 950);
+      setTrackLineWidth(targetLevel >= 2 ? 33 : 10);
+    }, 300);
 
-    // Stage 3: In-Transit (950ms - 1550ms)
-    const t3 = setTimeout(() => {
-      if (isDelivered) {
-        setTrackAnimState(prev => ({ ...prev, 3: 'done', 4: 'clock' }));
-        setTrackLineWidth(100);
-      } else {
-        setTrackAnimState(prev => ({ ...prev, 3: 'active' }));
-        setTrackLineWidth(66);
+    // Stage 2: Packed (300ms - 650ms)
+    const t2 = setTimeout(() => {
+      if (targetLevel >= 2) {
+        setTrackAnimState(prev => ({
+          ...prev,
+          2: 'done',
+          3: targetLevel >= 3 ? (targetLevel === 3 ? 'active' : 'clock') : 'pending'
+        }));
+        setTrackLineWidth(targetLevel >= 3 ? 66 : 33);
       }
-    }, 1550);
+    }, 650);
 
-    // Stage 4: Delivered (if applicable)
+    // Stage 3: In-Transit (650ms - 1000ms)
+    const t3 = setTimeout(() => {
+      if (targetLevel >= 3) {
+        if (targetLevel === 3) {
+          setTrackAnimState(prev => ({ ...prev, 3: 'active' }));
+          setTrackLineWidth(66);
+        } else {
+          setTrackAnimState(prev => ({ ...prev, 3: 'done', 4: 'clock' }));
+          setTrackLineWidth(100);
+        }
+      }
+    }, 1000);
+
+    // Stage 4: Delivered (1000ms - 1350ms)
     const t4 = setTimeout(() => {
-      if (isDelivered) {
+      if (targetLevel >= 4) {
         setTrackAnimState(prev => ({ ...prev, 4: 'done' }));
         setTrackLineWidth(100);
       }
-    }, 2150);
+    }, 1350);
 
     return () => {
       clearTimeout(t1);
@@ -275,15 +292,17 @@ export const OrdersPage: React.FC = () => {
       ) : filteredOrders.length > 0 ? (
         <div className="space-y-6 relative z-10">
           {filteredOrders.map((order) => {
-            const isDelivered = order.paymentStatus === 'delivered';
-            const isShipped = order.paymentStatus === 'shipped';
-            const isPaid = order.paymentStatus === 'paid';
-            const isFailed = order.paymentStatus === 'failed' || order.paymentStatus === 'pending' || order.paymentStatus === 'cancelled';
+            const statusNormalized = (order.orderStatus || order.paymentStatus || 'Confirmed').toLowerCase();
+            const isDelivered = statusNormalized === 'delivered';
+            const isShipped = statusNormalized === 'in-transit' || statusNormalized === 'shipped';
+            const isPacked = statusNormalized === 'packed';
+            const isConfirmed = statusNormalized === 'confirmed' || statusNormalized === 'paid';
+            const isFailed = statusNormalized === 'failed' || (order.paymentStatus === 'pending' && !order.paymentMethod?.toLowerCase().includes('delivery') && !order.paymentMethod?.toLowerCase().includes('cod'));
 
             return (
               <div
                 key={order.orderId}
-                className="bg-white/60 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/80 shadow-2xl shadow-blue-500/10 space-y-6 hover:shadow-blue-500/15 transition-all duration-300 relative overflow-hidden"
+                className="bg-white/60 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/80 shadow-2xl shadow-blue-500/10 space-y-6 hover:shadow-blue-500/15 transition-all duration-300 relative overflow-hidden font-poppins"
               >
                 {/* 1. Order Card Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
@@ -294,17 +313,25 @@ export const OrdersPage: React.FC = () => {
                       </span>
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                          isDelivered || isShipped || isPaid
+                          isDelivered
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : isShipped
+                            ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                            : isPacked
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : isConfirmed
+                            ? 'bg-blue-50 text-[#0066FF] border border-blue-200'
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}
                       >
                         {isDelivered
                           ? 'Delivered'
                           : isShipped
-                          ? 'Dispatched'
-                          : isPaid
-                          ? 'Order Confirmed'
+                          ? 'In-Transit'
+                          : isPacked
+                          ? 'Packed'
+                          : isConfirmed
+                          ? 'Confirmed'
                           : 'Payment Failed'}
                       </span>
                     </div>

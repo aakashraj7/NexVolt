@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 
@@ -118,11 +119,13 @@ router.get('/products', async (req, res) => {
   }
 });
 
-// GET /api/merchant/orders - Get orders containing this merchant's products
+// GET /api/merchant/orders - Get orders containing this merchant's products (Excludes unpaid / incomplete checkouts)
 router.get('/orders', async (req, res) => {
   try {
     const { merchantId, status, search } = req.query;
-    let query = {};
+    let query = {
+      checkoutStatus: { $in: ['completed', 'recovered'] }
+    };
 
     if (merchantId) {
       const merchantProducts = await Product.find({ merchantId }).select('_id');
@@ -136,14 +139,21 @@ router.get('/orders', async (req, res) => {
     }
 
     if (status && status !== 'all') {
-      query.paymentStatus = status;
+      query.$or = [
+        { orderStatus: status },
+        { paymentStatus: status }
+      ];
     }
 
     if (search) {
-      query.$or = [
-        { orderId: { $regex: search, $options: 'i' } },
-        { 'customerDetails.name': { $regex: search, $options: 'i' } },
-        { 'customerDetails.email': { $regex: search, $options: 'i' } }
+      query.$and = [
+        {
+          $or: [
+            { orderId: { $regex: search, $options: 'i' } },
+            { 'customerDetails.name': { $regex: search, $options: 'i' } },
+            { 'customerDetails.email': { $regex: search, $options: 'i' } }
+          ]
+        }
       ];
     }
 
@@ -162,19 +172,39 @@ router.get('/orders', async (req, res) => {
 router.put('/orders/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { paymentStatus, checkoutStatus } = req.body;
+    const { orderStatus, paymentStatus, checkoutStatus } = req.body;
 
-    const order = await Order.findOne({ $or: [{ _id: id }, { orderId: id }] });
+    let order = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      order = await Order.findById(id);
+    }
+    if (!order) {
+      order = await Order.findOne({ orderId: id });
+    }
+
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    if (orderStatus) {
+      order.orderStatus = orderStatus;
+      if (orderStatus === 'Delivered') {
+        order.paymentStatus = 'delivered';
+      } else if (orderStatus === 'In-Transit') {
+        order.paymentStatus = 'shipped';
+      } else if (orderStatus === 'Confirmed' || orderStatus === 'Packed') {
+        if (order.paymentStatus === 'delivered' || order.paymentStatus === 'shipped') {
+          order.paymentStatus = 'paid';
+        }
+      }
+    }
     if (paymentStatus) order.paymentStatus = paymentStatus;
     if (checkoutStatus) order.checkoutStatus = checkoutStatus;
 
     await order.save();
     res.json({ success: true, message: 'Order status updated', order });
   } catch (error) {
+    console.error('Error updating order status:', error);
     res.status(500).json({ success: false, message: 'Error updating order status', error: error.message });
   }
 });
