@@ -269,7 +269,13 @@ export const api = {
   },
 
   // Orders & Revenue Recovery
-  async initiateOrder(orderData: Partial<Order>) {
+  async initiateOrder(orderData: Partial<Order>): Promise<{
+    success: boolean;
+    orderId: string;
+    razorpayOrderId?: string;
+    keyId?: string;
+    order: any;
+  }> {
     try {
       const res = await apiClient.post('/orders/initiate', orderData);
       if (res.data && res.data.success) {
@@ -285,7 +291,35 @@ export const api = {
     };
   },
 
-  async getOrderById(orderId: string) {
+  async createRazorpayOrder(orderId: string) {
+    try {
+      const res = await apiClient.post(`/orders/${orderId}/create-razorpay-order`);
+      if (res.data && res.data.success) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend createRazorpayOrder error:', err);
+    }
+    return null;
+  },
+
+  async verifyPayment(orderId: string, payload: {
+    razorpay_order_id?: string;
+    razorpay_payment_id?: string;
+    razorpay_signature?: string;
+    paymentMethod?: string;
+    isRecovered?: boolean;
+  }) {
+    try {
+      const res = await apiClient.post(`/orders/${orderId}/verify-payment`, payload);
+      return res.data;
+    } catch (err: any) {
+      console.error('Backend verifyPayment error:', err);
+      throw err;
+    }
+  },
+
+  async getOrderById(orderId: string): Promise<Order | null> {
     try {
       const res = await apiClient.get(`/orders/single/${orderId}`);
       if (res.data && res.data.success) {
@@ -297,9 +331,9 @@ export const api = {
     return null;
   },
 
-  async completeOrder(orderId: string, paymentId?: string, paymentMethod?: string) {
+  async completeOrder(orderId: string, paymentId?: string, paymentMethod?: string, isRecovered?: boolean) {
     try {
-      const res = await apiClient.post(`/orders/${orderId}/complete`, { paymentId, paymentMethod });
+      const res = await apiClient.post(`/orders/${orderId}/complete`, { paymentId, paymentMethod, isRecovered });
       if (res.data && res.data.success) {
         return res.data;
       }
@@ -309,9 +343,20 @@ export const api = {
     return { success: true };
   },
 
-  async failOrder(orderId: string, reason?: string) {
+  async failOrder(orderId: string, failureDetails?: {
+    reason?: string;
+    code?: string;
+    description?: string;
+    source?: string;
+    step?: string;
+    paymentId?: string;
+  } | string) {
     try {
-      const res = await apiClient.post(`/orders/${orderId}/fail`, { reason });
+      const payload = typeof failureDetails === 'string'
+        ? { reason: failureDetails, description: failureDetails }
+        : (failureDetails || { reason: 'Payment was cancelled or failed' });
+
+      const res = await apiClient.post(`/orders/${orderId}/fail`, payload);
       if (res.data && res.data.success) {
         return res.data;
       }

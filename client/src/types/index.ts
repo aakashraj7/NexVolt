@@ -97,8 +97,22 @@ export interface Order {
   shipping: number;
   discountAmount: number;
   totalAmount: number;
-  currency: string;
+  currency?: string;
   paymentMethod: string;
+  paymentId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  failureReason?: string;
+  razorpayFailureData?: {
+    code?: string;
+    description?: string;
+    source?: string;
+    step?: string;
+    reason?: string;
+    paymentId?: string;
+    failedAt?: string;
+  };
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'shipped' | 'delivered' | string;
   orderStatus?: 'Confirmed' | 'Packed' | 'In-Transit' | 'Delivered' | string;
   checkoutStatus: 'initiated' | 'abandoned' | 'recovered' | 'completed';

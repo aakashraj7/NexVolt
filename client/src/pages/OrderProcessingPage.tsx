@@ -198,30 +198,59 @@ export const OrderProcessingPage: React.FC = () => {
 
     const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder';
 
-    const options = {
+    // 1. Ensure server-side Razorpay Order ID is available
+    let currentRzpOrderId = order.razorpayOrderId;
+    if (!currentRzpOrderId) {
+      try {
+        const rzpOrderData = await api.createRazorpayOrder(order.orderId);
+        if (rzpOrderData?.razorpayOrderId) {
+          currentRzpOrderId = rzpOrderData.razorpayOrderId;
+          setOrder(prev => (prev ? { ...prev, razorpayOrderId: rzpOrderData.razorpayOrderId } : null));
+        }
+      } catch (err) {
+        console.warn('Could not pre-create Razorpay Order ID on server, falling back to direct amount mode:', err);
+      }
+    }
+
+    const options: any = {
       key: keyId,
       amount: Math.round(order.totalAmount * 100),
       currency: order.currency || 'INR',
       name: 'NexVolt Store',
       description: `Order #${order.orderId}`,
       image: '/src/assets/nexVolt-logo-without-text.png',
+      ...(currentRzpOrderId ? { order_id: currentRzpOrderId } : {}),
       handler: async (response: any) => {
         try {
           setStage('processing');
           const pId = response.razorpay_payment_id || 'rzp_paid';
           setPaymentId(pId);
-          await api.completeOrder(order.orderId, pId, 'Razorpay');
-          clearCart();
-          setStage('success');
-          try {
-            confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
-          } catch {}
-          showToast('Payment confirmed! Your order is placed.', 'success');
+
+          // 2. Cryptographic Server-Side Signature Verification
+          const verifyResult = await api.verifyPayment(order.orderId, {
+            razorpay_order_id: response.razorpay_order_id || currentRzpOrderId,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            paymentMethod: 'Razorpay'
+          });
+
+          if (verifyResult?.success) {
+            clearCart();
+            setStage('success');
+            try {
+              confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
+            } catch {}
+            showToast('Payment confirmed! Your order is placed.', 'success');
+          } else {
+            throw new Error(verifyResult?.message || 'Payment signature verification failed');
+          }
         } catch (err: any) {
-          console.error('Payment error:', err);
+          console.error('Payment verification error:', err);
           razorpayLaunchedRef.current = false;
           setStage('failed');
-          setFailureReason('Payment capture was interrupted. Please retry.');
+          const errMsg = err?.response?.data?.message || err?.message || 'Payment verification was interrupted. Please retry.';
+          setFailureReason(errMsg);
+          showToast(errMsg, 'error');
         }
       },
       prefill: {
@@ -236,8 +265,12 @@ export const OrderProcessingPage: React.FC = () => {
         ondismiss: async () => {
           razorpayLaunchedRef.current = false;
           setStage('failed');
-          setFailureReason('Payment window was closed before completion.');
-          await api.failOrder(order.orderId, 'Payment closed by user');
+          const reason = 'Payment window was closed before completion.';
+          setFailureReason(reason);
+          await api.failOrder(order.orderId, {
+            reason,
+            description: 'Customer exited the Razorpay payment modal window without completing authorization.'
+          });
         }
       }
     };
@@ -247,9 +280,17 @@ export const OrderProcessingPage: React.FC = () => {
       rzp.on('payment.failed', async (response: any) => {
         razorpayLaunchedRef.current = false;
         setStage('failed');
-        const reason = response.error?.description || 'Payment could not be completed';
+        const errObj = response.error || {};
+        const reason = errObj.description || errObj.reason || 'Payment could not be completed';
         setFailureReason(reason);
-        await api.failOrder(order.orderId, reason);
+        await api.failOrder(order.orderId, {
+          reason,
+          code: errObj.code || '',
+          description: errObj.description || reason,
+          source: errObj.source || '',
+          step: errObj.step || '',
+          paymentId: errObj.metadata?.payment_id || ''
+        });
       });
       rzp.open();
     } catch (err: any) {

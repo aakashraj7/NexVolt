@@ -45,7 +45,19 @@ const orderSchema = new mongoose.Schema({
   currency: { type: String, default: 'INR' },
   paymentMethod: { type: String, default: 'Razorpay' },
   paymentId: { type: String, default: '' },
+  razorpayOrderId: { type: String, default: '', index: true },
+  razorpayPaymentId: { type: String, default: '' },
+  razorpaySignature: { type: String, default: '' },
   failureReason: { type: String, default: '' },
+  razorpayFailureData: {
+    code: { type: String, default: '' },
+    description: { type: String, default: '' },
+    source: { type: String, default: '' },
+    step: { type: String, default: '' },
+    reason: { type: String, default: '' },
+    paymentId: { type: String, default: '' },
+    failedAt: { type: Date }
+  },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed', 'refunded', 'shipped', 'delivered'],
