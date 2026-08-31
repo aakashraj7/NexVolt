@@ -281,14 +281,11 @@ export const api = {
       if (res.data && res.data.success) {
         return res.data;
       }
-    } catch (err) {
-      console.warn('Backend initiateOrder unavailable');
+      throw new Error(res.data?.message || 'Failed to initiate order');
+    } catch (err: any) {
+      console.error('Backend initiateOrder error:', err);
+      throw err;
     }
-    return {
-      success: true,
-      orderId: 'NV-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000),
-      order: orderData
-    };
   },
 
   async createRazorpayOrder(orderId: string) {
@@ -384,6 +381,67 @@ export const api = {
       console.warn('Backend getUserOrders unavailable');
     }
     return [];
+  },
+
+  // RevivePay AI Revenue Recovery Agent API
+  async analyzeRecovery(orderId: string) {
+    try {
+      const res = await apiClient.post(`/recovery/analyze/${orderId}`);
+      if (res.data && res.data.success) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend analyzeRecovery unavailable');
+    }
+    return null;
+  },
+
+  async generateRecoveryPaymentLink(orderId: string) {
+    try {
+      const res = await apiClient.post(`/recovery/generate-link/${orderId}`);
+      if (res.data && res.data.success) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend generateRecoveryPaymentLink error:', err);
+    }
+    return null;
+  },
+
+  async getRecoveryAnalytics() {
+    try {
+      const res = await apiClient.get('/recovery/analytics');
+      if (res.data && res.data.success) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend getRecoveryAnalytics unavailable');
+    }
+    return null;
+  },
+
+  async getRecoveryCases() {
+    try {
+      const res = await apiClient.get('/recovery/cases');
+      if (res.data && res.data.success) {
+        return res.data.cases;
+      }
+    } catch (err) {
+      console.warn('Backend getRecoveryCases unavailable');
+    }
+    return [];
+  },
+
+  async getRecoveryCaseById(orderId: string) {
+    try {
+      const res = await apiClient.get(`/recovery/cases/${orderId}`);
+      if (res.data && res.data.success) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend getRecoveryCaseById unavailable');
+    }
+    return null;
   },
 
   // Merchant & Seller API

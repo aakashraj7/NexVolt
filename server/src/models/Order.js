@@ -69,7 +69,7 @@ const orderSchema = new mongoose.Schema({
     default: 'Confirmed'
   },
   merchantNotified: { type: Boolean, default: true },
-  // Revenue Recovery Tracking fields (Track 3)
+  // Revenue Recovery Tracking fields (Track 3: RevivePay)
   checkoutStatus: {
     type: String,
     enum: ['initiated', 'abandoned', 'recovered', 'completed'],
@@ -82,6 +82,36 @@ const orderSchema = new mongoose.Schema({
     recoveryTriggerCount: { type: Number, default: 0 },
     discountOffered: { type: Number, default: 0 },
     lastNotifiedAt: { type: Date }
+  },
+  revivePayCase: {
+    status: {
+      type: String,
+      enum: ['idle', 'analyzing', 'action_recommended', 'link_generated', 'recovered', 'escalated', 'failed'],
+      default: 'idle'
+    },
+    recoveryAttempts: { type: Number, default: 0 },
+    lastRecommendedAction: {
+      type: String,
+      default: ''
+    },
+    agentReasoning: { type: String, default: '' },
+    customerMessage: { type: String, default: '' },
+    promptUserForLink: { type: Boolean, default: false },
+    razorpayPaymentLinkId: { type: String, default: '' },
+    razorpayPaymentLinkUrl: { type: String, default: '' },
+    razorpayPaymentLinkStatus: { type: String, default: '' },
+    recoveredAt: { type: Date },
+    recoveredAmount: { type: Number, default: 0 },
+    escalationReason: { type: String, default: '' },
+    decisionLogs: [{
+      timestamp: { type: Date, default: Date.now },
+      decision: { type: String, required: true },
+      reason: { type: String, required: true },
+      tool: { type: String, required: true },
+      toolParameters: { type: mongoose.Schema.Types.Mixed },
+      result: { type: String, default: 'success' },
+      attemptNumber: { type: Number, default: 1 }
+    }]
   }
 }, {
   timestamps: true

@@ -12,6 +12,7 @@ import merchantRoutes from './routes/merchantRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
+import recoveryRoutes from './routes/recoveryRoutes.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use('/api/merchant', merchantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/recovery', recoveryRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

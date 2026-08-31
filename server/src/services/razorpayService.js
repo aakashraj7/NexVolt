@@ -111,4 +111,49 @@ export function verifyWebhookSignature(rawBody, signature, secret) {
   }
 }
 
+/**
+ * Creates a Razorpay Payment Link for failed order recovery (RevivePay)
+ * @param {Object} params
+ * @param {number} params.amountInRupees
+ * @param {string} params.orderId
+ * @param {Object} [params.customerDetails]
+ * @param {string} [params.description]
+ */
+export async function createRazorpayPaymentLink({ amountInRupees, orderId, customerDetails, description }) {
+  if (!razorpayInstance) {
+    throw new Error('Razorpay SDK is not configured on the server.');
+  }
+
+  const amountInPaise = Math.round(Number(amountInRupees) * 100);
+  if (isNaN(amountInPaise) || amountInPaise <= 0) {
+    throw new Error(`Invalid order amount: ${amountInRupees}`);
+  }
+
+  const options = {
+    amount: amountInPaise,
+    currency: 'INR',
+    accept_partial: false,
+    reference_id: String(orderId).slice(0, 40),
+    description: description || `RevivePay Recovery for Order #${orderId}`,
+    customer: {
+      name: customerDetails?.name || 'Customer',
+      email: customerDetails?.email || '',
+      contact: customerDetails?.phone || ''
+    },
+    notify: {
+      sms: Boolean(customerDetails?.phone),
+      email: Boolean(customerDetails?.email)
+    },
+    reminder_enable: true,
+    notes: {
+      orderId,
+      receipt: orderId,
+      source: 'RevivePay_AI_Recovery_Agent'
+    }
+  };
+
+  const paymentLink = await razorpayInstance.paymentLink.create(options);
+  return paymentLink;
+}
+
 export { razorpayInstance };

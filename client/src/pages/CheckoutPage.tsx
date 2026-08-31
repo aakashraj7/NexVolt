@@ -285,20 +285,24 @@ export const CheckoutPage: React.FC = () => {
       };
 
       const initiateRes = await api.initiateOrder(orderPayload);
-      const orderIdToComplete = initiateRes?.orderId || activeOrderId || ('NV-' + Date.now());
+      if (!initiateRes?.orderId) {
+        throw new Error('Could not initiate order session on server.');
+      }
+      const orderIdToComplete = initiateRes.orderId;
 
       navigate(`/order/processing/${orderIdToComplete}`, {
         state: {
-          order: {
+          order: initiateRes.order || {
             ...orderPayload,
-            orderId: orderIdToComplete
+            orderId: orderIdToComplete,
+            razorpayOrderId: initiateRes.razorpayOrderId
           },
           from: 'checkout'
         }
       });
     } catch (err: any) {
       console.error('Checkout initiation error:', err);
-      showToast(err.response?.data?.message || 'Error processing checkout.', 'error');
+      showToast(err.response?.data?.message || err.message || 'Error processing checkout.', 'error');
       setIsProcessing(false);
     }
   };

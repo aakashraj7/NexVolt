@@ -3,6 +3,7 @@ import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import { createRazorpayOrder, verifyRazorpayPaymentSignature } from '../services/razorpayService.js';
+import { analyzeRecoveryCase } from '../services/recoveryAgentService.js';
 
 const router = express.Router();
 
@@ -220,6 +221,11 @@ router.post('/:orderId/fail', async (req, res) => {
 
     await order.save();
 
+    // Trigger RevivePay AI Recovery Analysis asynchronously
+    analyzeRecoveryCase(order.orderId).catch(err => {
+      console.warn('RevivePay background analysis note:', err.message);
+    });
+
     res.json({ success: true, message: 'Order payment failure recorded', order });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error updating failed order', error: error.message });
@@ -280,18 +286,38 @@ router.post('/:orderId/verify-payment', async (req, res) => {
       order.razorpaySignature = razorpay_signature || '';
       order.paymentId = razorpay_payment_id;
       order.paymentStatus = 'paid';
+      order.failureReason = '';
+      order.abandonedAt = null;
     } else {
       order.paymentMethod = 'Pay on Delivery (COD)';
       order.paymentStatus = 'pending';
       order.paymentId = 'COD-' + Date.now();
     }
 
+    const isActuallyRecovered = isRecovered || (order.revivePayCase && order.revivePayCase.recoveryAttempts > 0) || order.checkoutStatus === 'abandoned';
     order.paymentMethod = paymentMethod;
-    order.checkoutStatus = isRecovered ? 'recovered' : 'completed';
+    order.checkoutStatus = isActuallyRecovered ? 'recovered' : 'completed';
     order.merchantNotified = true;
 
-    if (isRecovered) {
-      order.recoveryMetadata.isRecovered = true;
+    if (isActuallyRecovered) {
+      if (order.recoveryMetadata) {
+        order.recoveryMetadata.isRecovered = true;
+      }
+      if (order.revivePayCase) {
+        order.revivePayCase.status = 'recovered';
+        order.revivePayCase.recoveredAt = new Date();
+        order.revivePayCase.recoveredAmount = order.totalAmount;
+        if (order.revivePayCase.decisionLogs) {
+          order.revivePayCase.decisionLogs.push({
+            timestamp: new Date(),
+            decision: 'payment_verified_recovered',
+            reason: 'Customer successfully re-authorized payment via Razorpay retry',
+            tool: 'retryPayment',
+            result: 'recovered',
+            attemptNumber: order.revivePayCase.recoveryAttempts || 1
+          });
+        }
+      }
     }
 
     await order.save();

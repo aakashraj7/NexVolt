@@ -86,6 +86,32 @@ export interface CustomerDetails {
   };
 }
 
+export interface RevivePayDecisionLog {
+  timestamp: string;
+  decision: string;
+  reason: string;
+  tool: string;
+  toolParameters?: any;
+  result: string;
+  attemptNumber: number;
+}
+
+export interface RevivePayCase {
+  status: 'idle' | 'analyzing' | 'action_recommended' | 'link_generated' | 'recovered' | 'escalated' | 'failed' | string;
+  recoveryAttempts: number;
+  lastRecommendedAction?: string;
+  agentReasoning?: string;
+  customerMessage?: string;
+  promptUserForLink?: boolean;
+  razorpayPaymentLinkId?: string;
+  razorpayPaymentLinkUrl?: string;
+  razorpayPaymentLinkStatus?: string;
+  recoveredAt?: string;
+  recoveredAmount?: number;
+  escalationReason?: string;
+  decisionLogs?: RevivePayDecisionLog[];
+}
+
 export interface Order {
   _id?: string;
   orderId: string;
@@ -113,6 +139,7 @@ export interface Order {
     paymentId?: string;
     failedAt?: string;
   };
+  revivePayCase?: RevivePayCase;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'shipped' | 'delivered' | string;
   orderStatus?: 'Confirmed' | 'Packed' | 'In-Transit' | 'Delivered' | string;
   checkoutStatus: 'initiated' | 'abandoned' | 'recovered' | 'completed';

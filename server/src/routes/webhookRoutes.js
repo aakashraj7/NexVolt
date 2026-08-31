@@ -109,19 +109,45 @@ router.post('/razorpay', async (req, res) => {
 
       case 'payment_link.paid': {
         const linkEntity = payload.payment_link?.entity;
-        const notesReceipt = linkEntity?.notes?.receipt || linkEntity?.reference_id;
+        const paymentEntity = payload.payment?.entity;
+        const notesReceipt = linkEntity?.notes?.receipt || linkEntity?.reference_id || linkEntity?.notes?.orderId;
 
         if (notesReceipt) {
           const order = await Order.findOne({ orderId: notesReceipt });
           if (order && order.paymentStatus !== 'paid') {
             order.paymentStatus = 'paid';
             order.checkoutStatus = 'recovered';
+            if (paymentEntity?.id) {
+              order.paymentId = paymentEntity.id;
+              order.razorpayPaymentId = paymentEntity.id;
+            }
             order.recoveryMetadata = {
               ...order.recoveryMetadata,
               isRecovered: true
             };
+            if (order.revivePayCase) {
+              order.revivePayCase.status = 'recovered';
+              order.revivePayCase.recoveredAt = new Date();
+              order.revivePayCase.recoveredAmount = order.totalAmount;
+              order.revivePayCase.razorpayPaymentLinkStatus = 'paid';
+              order.revivePayCase.decisionLogs.push({
+                timestamp: new Date(),
+                decision: 'payment_link_completed',
+                reason: 'Customer successfully paid via Razorpay Recovery Payment Link',
+                tool: 'createPaymentLink',
+                result: 'recovered',
+                attemptNumber: order.revivePayCase.recoveryAttempts
+              });
+            }
             await order.save();
-            console.log(`Webhook: Marked Order ${order.orderId} as RECOVERED via Payment Link.`);
+
+            // Clear user cart
+            await Cart.findOneAndUpdate(
+              { userId: order.userId },
+              { items: [], couponApplied: { code: '', discountPercent: 0 } }
+            );
+
+            console.log(`Webhook: Marked Order ${order.orderId} as RECOVERED via RevivePay Payment Link.`);
           }
         }
         break;

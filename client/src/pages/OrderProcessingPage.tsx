@@ -15,12 +15,17 @@ import {
   Zap,
   CreditCard,
   ArrowLeft,
-  ShoppingBag
+  ShoppingBag,
+  Sparkles,
+  Copy,
+  ExternalLink,
+  QrCode,
+  Check
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import { useCart } from '../context/CartContext';
-import type { Order } from '../types';
+import type { Order, RevivePayCase } from '../types';
 
 declare global {
   interface Window {
@@ -49,6 +54,13 @@ export const OrderProcessingPage: React.FC = () => {
   const [prepProgress, setPrepProgress] = useState(25);
   const [prepStepText, setPrepStepText] = useState('Initializing 1-Click Express Checkout...');
   const razorpayLaunchedRef = useRef(false);
+  const paymentSucceededRef = useRef(false);
+
+  // RevivePay AI Recovery State
+  const [revivePayCase, setRevivePayCase] = useState<RevivePayCase | null>(null);
+  const [isAnalyzingRevivePay, setIsAnalyzingRevivePay] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // 1. Scroll To Top on mount and whenever stage updates
   useEffect(() => {
@@ -81,11 +93,17 @@ export const OrderProcessingPage: React.FC = () => {
           setOrder(data);
           if (data.paymentStatus === 'paid') {
             setStage('success');
-          } else if (data.paymentStatus === 'failed' || data.paymentStatus === 'pending') {
-            // On refresh or direct visit of an unpaid order, show the resolution page
-            if (!location.state?.immediateStatus) {
-              setStage('failed');
-              setFailureReason(data.failureReason || 'Payment was not completed.');
+          } else if (
+            data.paymentStatus === 'failed' ||
+            data.failureReason ||
+            (data.revivePayCase?.recoveryAttempts || 0) > 0 ||
+            data.checkoutStatus === 'abandoned'
+          ) {
+            // Unpaid, failed, or already attempted orders stay on the resolution screen on reload
+            setStage('failed');
+            setFailureReason(data.failureReason || 'Payment was not completed.');
+            if (data.revivePayCase) {
+              setRevivePayCase(data.revivePayCase);
             }
           }
         } else {
@@ -100,17 +118,8 @@ export const OrderProcessingPage: React.FC = () => {
       }
     };
 
-    if (!order) {
-      fetchOrder();
-    } else {
-      if (order.userId && order.userId !== user.id) {
-        navigate('/orders', { replace: true });
-      }
-      if (order.paymentStatus === 'paid') {
-        setStage('success');
-      }
-    }
-  }, [orderId, order, user, isLoaded, navigate, showToast, location.state]);
+    fetchOrder();
+  }, [orderId, isLoaded, user]);
 
   // 4. Dynamic Multi-Stage Countdown & Launch Payment Flow
   useEffect(() => {
@@ -185,6 +194,7 @@ export const OrderProcessingPage: React.FC = () => {
   const launchRazorpay = async () => {
     if (!order) return;
     razorpayLaunchedRef.current = true;
+    paymentSucceededRef.current = false;
     setStage('awaiting');
 
     const isLoaded = await loadRazorpayScript();
@@ -219,9 +229,11 @@ export const OrderProcessingPage: React.FC = () => {
       name: 'NexVolt Store',
       description: `Order #${order.orderId}`,
       image: '/src/assets/nexVolt-logo-without-text.png',
+      timeout: 60, // 60 seconds timeout for experimentation & testing RevivePay
       ...(currentRzpOrderId ? { order_id: currentRzpOrderId } : {}),
       handler: async (response: any) => {
         try {
+          paymentSucceededRef.current = true;
           setStage('processing');
           const pId = response.razorpay_payment_id || 'rzp_paid';
           setPaymentId(pId);
@@ -235,6 +247,12 @@ export const OrderProcessingPage: React.FC = () => {
           });
 
           if (verifyResult?.success) {
+            paymentSucceededRef.current = true;
+            if (verifyResult.order) {
+              setOrder(verifyResult.order);
+            } else {
+              setOrder(prev => prev ? { ...prev, paymentStatus: 'paid', checkoutStatus: 'completed' } : null);
+            }
             clearCart();
             setStage('success');
             try {
@@ -242,9 +260,11 @@ export const OrderProcessingPage: React.FC = () => {
             } catch {}
             showToast('Payment confirmed! Your order is placed.', 'success');
           } else {
+            paymentSucceededRef.current = false;
             throw new Error(verifyResult?.message || 'Payment signature verification failed');
           }
         } catch (err: any) {
+          paymentSucceededRef.current = false;
           console.error('Payment verification error:', err);
           razorpayLaunchedRef.current = false;
           setStage('failed');
@@ -264,6 +284,10 @@ export const OrderProcessingPage: React.FC = () => {
       modal: {
         ondismiss: async () => {
           razorpayLaunchedRef.current = false;
+          // CRITICAL: If the payment already succeeded in handler(), ignore ondismiss
+          if (paymentSucceededRef.current) {
+            return;
+          }
           setStage('failed');
           const reason = 'Payment window was closed before completion.';
           setFailureReason(reason);
@@ -278,11 +302,11 @@ export const OrderProcessingPage: React.FC = () => {
     try {
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', async (response: any) => {
-        razorpayLaunchedRef.current = false;
-        setStage('failed');
+        if (paymentSucceededRef.current) return;
         const errObj = response.error || {};
         const reason = errObj.description || errObj.reason || 'Payment could not be completed';
         setFailureReason(reason);
+        // Persist telemetry without immediately locking UI if the modal is still open
         await api.failOrder(order.orderId, {
           reason,
           code: errObj.code || '',
@@ -301,6 +325,93 @@ export const OrderProcessingPage: React.FC = () => {
     }
   };
 
+  // 5. RevivePay AI Recovery Analysis & Live Link Status Polling
+  useEffect(() => {
+    if (stage !== 'failed' || !order?.orderId) return;
+
+    let isMounted = true;
+    const fetchRevivePayAnalysis = async () => {
+      try {
+        setIsAnalyzingRevivePay(true);
+        const data = await api.analyzeRecovery(order.orderId);
+        if (isMounted && data?.recoveryCase) {
+          setRevivePayCase(data.recoveryCase);
+        }
+      } catch (err) {
+        console.warn('RevivePay analysis load note:', err);
+      } finally {
+        if (isMounted) setIsAnalyzingRevivePay(false);
+      }
+    };
+
+    fetchRevivePayAnalysis();
+
+    // If a payment link is active, poll order status every 3.5s for instant webhook/external payment confirmation
+    let pollTimer: any = null;
+    pollTimer = setInterval(async () => {
+      try {
+        const latest = await api.getOrderById(order.orderId);
+        if (latest && latest.paymentStatus === 'paid') {
+          if (isMounted) {
+            setOrder(latest);
+            setStage('success');
+            clearCart();
+            showToast('Payment confirmed! Your order is placed.', 'success');
+            try {
+              confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
+            } catch {}
+          }
+        }
+      } catch {}
+    }, 3500);
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) clearInterval(pollTimer);
+    };
+  }, [stage, order?.orderId]);
+
+  const handleGeneratePaymentLink = async () => {
+    if (!order) return;
+    try {
+      setIsGeneratingLink(true);
+      const res = await api.generateRecoveryPaymentLink(order.orderId);
+      if (res?.success && res.shortUrl) {
+        setRevivePayCase(prev =>
+          prev
+            ? {
+                ...prev,
+                status: 'link_generated',
+                razorpayPaymentLinkId: res.paymentLinkId,
+                razorpayPaymentLinkUrl: res.shortUrl
+              }
+            : {
+                status: 'link_generated',
+                recoveryAttempts: 1,
+                razorpayPaymentLinkId: res.paymentLinkId,
+                razorpayPaymentLinkUrl: res.shortUrl
+              }
+        );
+        showToast('Secure Razorpay Payment Link generated!', 'success');
+      } else {
+        showToast('Could not generate payment link. Please retry or choose Cash on Delivery.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Error creating payment link', 'error');
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (revivePayCase?.razorpayPaymentLinkUrl) {
+      navigator.clipboard.writeText(revivePayCase.razorpayPaymentLinkUrl);
+      setCopiedLink(true);
+      showToast('Payment link copied to clipboard!', 'success');
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
+
   const handleSmartBack = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (location.state?.from === 'cart') {
@@ -316,6 +427,14 @@ export const OrderProcessingPage: React.FC = () => {
         navigate('/orders');
       }
     }
+  };
+
+  const getCustomerFriendlyAction = (action?: string) => {
+    if (!action) return 'Retry Payment';
+    const act = action.toLowerCase();
+    if (act.includes('link')) return 'Direct Payment Link';
+    if (act.includes('escalat')) return 'Support Assistance / Pay on Delivery';
+    return 'Retry Payment';
   };
 
   if (loading || !order) {
@@ -518,34 +637,41 @@ export const OrderProcessingPage: React.FC = () => {
             </div>
 
             {/* Right Column: Delivery Info & Actions (5 Cols) */}
-            <div className="lg:col-span-5 flex flex-col justify-between gap-4">
-              {/* Delivery Address Card */}
-              <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-900 pb-2 border-b border-slate-100">
-                  <MapPin className="w-4 h-4 text-[#0066FF]" />
-                  <span>Delivery Destination</span>
+            <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm flex flex-col justify-between space-y-6">
+              {/* Delivery Details */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                    <MapPin className="w-4 h-4 text-[#0066FF]" />
+                    <span>Delivery Destination</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Express Dispatch
+                  </span>
                 </div>
-                <div className="text-xs text-slate-600 space-y-0.5">
-                  <p className="font-bold text-slate-900">{order.customerDetails?.name}</p>
-                  <p>{order.customerDetails?.address?.street}</p>
-                  <p>{order.customerDetails?.address?.city}, {order.customerDetails?.address?.state} - {order.customerDetails?.address?.pincode}</p>
-                  <p className="text-slate-400 font-mono pt-1">+91 {order.customerDetails?.phone}</p>
+
+                <div className="text-xs text-slate-600 space-y-1 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                  <p className="font-bold text-slate-900 text-sm">{order.customerDetails?.name}</p>
+                  <p className="text-slate-600 leading-relaxed">{order.customerDetails?.address?.street}</p>
+                  <p className="text-slate-600">{order.customerDetails?.address?.city}, {order.customerDetails?.address?.state} - {order.customerDetails?.address?.pincode}</p>
+                  <p className="text-slate-500 font-mono pt-1 text-[11px]">+91 {order.customerDetails?.phone}</p>
                 </div>
-                <div className="pt-2 border-t border-slate-100 flex items-center gap-2 text-[11px] text-emerald-700 font-semibold">
-                  <Truck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Bluedart Air Freight • Within 24–48 Hours</span>
+
+                <div className="p-3 rounded-2xl bg-blue-50/60 border border-blue-100/80 flex items-center gap-2.5 text-xs text-[#0066FF] font-semibold">
+                  <Truck className="w-4 h-4 text-[#0066FF] shrink-0" />
+                  <span>Bluedart Air Express • Delivery in 24–48 Hours</span>
                 </div>
               </div>
 
               {/* Action Hub */}
-              <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-md space-y-3 mt-auto">
+              <div className="space-y-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
                     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                     navigate('/orders', { replace: true });
                   }}
-                  className="w-full py-3.5 rounded-xl bg-[#0066FF] hover:bg-blue-600 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-md shadow-blue-500/20"
+                  className="w-full py-3.5 px-5 rounded-2xl bg-[#0066FF] hover:bg-blue-600 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-md shadow-blue-500/20"
                 >
                   <span>Track Order in My Orders</span>
                   <ArrowRight className="w-4 h-4" />
@@ -553,7 +679,7 @@ export const OrderProcessingPage: React.FC = () => {
 
                 <Link
                   to="/products"
-                  className="w-full py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold text-xs transition text-center block"
+                  className="w-full py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition text-center block shadow-2xs"
                 >
                   Continue Shopping
                 </Link>
@@ -571,18 +697,117 @@ export const OrderProcessingPage: React.FC = () => {
           <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-6">
             
             {/* Clean Status Alert Banner */}
-            <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+            <div className="p-5 rounded-2xl bg-rose-50/70 border border-rose-200/80 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-amber-950">
+                <h3 className="text-sm font-bold text-rose-950">
                   Payment Was Not Completed
                 </h3>
-                <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                <p className="text-xs text-rose-800 leading-relaxed font-medium">
                   {failureReason || 'The transaction window was closed or interrupted before authorization. No money was deducted from your account.'}
                 </p>
               </div>
+            </div>
+
+            {/* REVIVEPAY AI RECOVERY AGENT CARD */}
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-blue-50/90 via-indigo-50/50 to-white border border-blue-200/80 shadow-xs space-y-3.5 relative overflow-hidden">
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0066FF] text-white text-[11px] font-bold shadow-2xs">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>RevivePay AI Recovery</span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                  Autonomous Protection
+                </span>
+              </div>
+
+              {isAnalyzingRevivePay ? (
+                <div className="py-3 flex items-center gap-2.5 text-xs text-slate-600 font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0066FF]" />
+                  <span>RevivePay AI is analyzing payment telemetry & evaluating recovery route...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
+                    {revivePayCase?.customerMessage ||
+                      'The bank gateway experienced a temporary timeout. You can instantly resume and complete your order with 1-click retry or generate a direct payment link.'}
+                  </p>
+
+                  {revivePayCase?.lastRecommendedAction && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-100/70 text-[#0066FF] text-[11px] font-bold">
+                      <span>✓ Recommended Step:</span>
+                      <span>{getCustomerFriendlyAction(revivePayCase.lastRecommendedAction)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* USER-APPROVED PAYMENT LINK SECTION - ONLY SHOWN WHEN RECOMMENDED OR ALREADY GENERATED */}
+              {revivePayCase?.razorpayPaymentLinkUrl ? (
+                <div className="p-4 rounded-2xl bg-white border border-blue-200 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4 text-[#0066FF]" />
+                      <span>Razorpay Direct Payment Link Active</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                      Ready
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={revivePayCase.razorpayPaymentLinkUrl}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-700 select-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 shrink-0 transition cursor-pointer"
+                    >
+                      {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                    <a
+                      href={revivePayCase.razorpayPaymentLinkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto flex-1 py-2.5 px-4 rounded-xl bg-[#0066FF] hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 shadow-xs transition"
+                    >
+                      <span>Open Secure Razorpay Link</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    ⚡ You can pay via UPI, Cards, or NetBanking on any device. Once paid, this page will automatically confirm your order.
+                  </p>
+                </div>
+              ) : (revivePayCase?.promptUserForLink || revivePayCase?.lastRecommendedAction === 'suggest_payment_link') ? (
+                <div className="p-3.5 rounded-2xl bg-white/80 border border-blue-100 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-slate-900">Having trouble with popup checkout?</p>
+                      <p className="text-[11px] text-slate-500">Generate a direct Razorpay payment link / UPI QR code to complete this purchase.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGeneratePaymentLink}
+                      disabled={isGeneratingLink}
+                      className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {isGeneratingLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
+                      <span>{isGeneratingLink ? 'Generating...' : 'Create Payment Link'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {/* Primary Action Buttons */}

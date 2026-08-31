@@ -23,7 +23,10 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  Activity,
+  AlertCircle
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Product, Order } from '../types';
@@ -209,6 +212,7 @@ export const MerchantDashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [recoveryAnalytics, setRecoveryAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [catalogPage, setCatalogPage] = useState(1);
   const CATALOG_ITEMS_PER_PAGE = 5;
@@ -241,15 +245,17 @@ export const MerchantDashboard: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const [statsData, productsData, ordersData] = await Promise.all([
+      const [statsData, productsData, ordersData, recoveryData] = await Promise.all([
         api.getMerchantStats(user.id),
         api.getMerchantProducts(user.id, { limit: 50 }),
-        api.getMerchantOrders({ merchantId: user.id })
+        api.getMerchantOrders({ merchantId: user.id }),
+        api.getRecoveryAnalytics()
       ]);
 
       if (statsData) setStats(statsData);
       if (productsData?.products) setProducts(productsData.products);
       if (ordersData) setOrders(ordersData);
+      if (recoveryData) setRecoveryAnalytics(recoveryData);
     } catch (err) {
       console.error('Error loading merchant dashboard data:', err);
     } finally {
@@ -902,26 +908,202 @@ export const MerchantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: AI Revenue Recovery Hub */}
+      {/* Tab 3: RevivePay AI Revenue Recovery Hub */}
       {activeTab === 'recovery' && (
         <div className="space-y-6">
+          {/* Header Banner */}
           <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-3 font-poppins">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#0066FF] border border-blue-200/80 text-xs font-bold font-poppins">
                 <Sparkles className="w-3.5 h-3.5 text-[#0066FF]" />
-                <span>Automated Conversion Agent</span>
+                <span>RevivePay AI Revenue Recovery Agent</span>
               </div>
-              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
+              <div className="flex items-center gap-2 bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-semibold text-slate-600">Recovery Agent Active</span>
+                <span className="text-xs font-bold text-emerald-700 font-poppins">RevivePay Active (Gemini Guardrails)</span>
               </div>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-poppins">
-              Smart Cart & Checkout Abandonment Recovery
+              AI-Powered Failed Payment & Drop-Off Recovery
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm leading-relaxed max-w-3xl font-medium">
-              Our autonomous AI agent continuously monitors buyer drop-offs during online checkout, analyzes cart value, and delivers personalized, time-sensitive incentive vouchers to recover lost sales for your store.
+              RevivePay autonomously diagnoses Razorpay payment authorization errors, bank timeouts, and checkout drop-offs. It coordinates instant 1-click retries and user-approved secure Razorpay Payment Links without price discounts or margin cuts.
             </p>
+          </div>
+
+          {/* 4 KPI Telemetry Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 font-poppins">
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                <span>Revenue at Risk</span>
+                <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
+                  <ShieldAlert className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 font-mono">
+                ₹{recoveryAnalytics?.metrics?.totalRevenueAtRisk ? recoveryAnalytics.metrics.totalRevenueAtRisk.toLocaleString('en-IN') : '0'}
+              </p>
+              <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> Unpaid failed checkouts
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                <span>Revenue Recovered</span>
+                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-extrabold text-emerald-700 font-mono">
+                ₹{recoveryAnalytics?.metrics?.totalRevenueRecovered ? recoveryAnalytics.metrics.totalRevenueRecovered.toLocaleString('en-IN') : '0'}
+              </p>
+              <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> 100% full-value recovery
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                <span>Recovery Success Rate</span>
+                <div className="p-1.5 rounded-lg bg-blue-50 text-[#0066FF]">
+                  <Activity className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 font-mono">
+                {recoveryAnalytics?.metrics?.recoveryRate ?? 0}%
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {recoveryAnalytics?.metrics?.successfulRecoveriesCount || 0} successfully recovered
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                <span>Active Recovery Cases</span>
+                <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 font-mono">
+                {recoveryAnalytics?.metrics?.activeCasesCount || abandonedCheckouts.length}
+              </p>
+              <p className="text-[11px] text-purple-600 font-medium">
+                Under active RevivePay monitoring
+              </p>
+            </div>
+          </div>
+
+          {/* RevivePay Agent Activity Timeline */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-5 font-poppins">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-[#0066FF]" />
+                <h3 className="text-base font-bold text-slate-900">RevivePay Agent Activity Timeline</h3>
+              </div>
+              <span className="text-xs font-semibold text-slate-400">
+                {recoveryAnalytics?.timeline?.length || 0} Recent Events
+              </span>
+            </div>
+
+            {recoveryAnalytics?.timeline && recoveryAnalytics.timeline.length > 0 ? (
+              <div className="space-y-3">
+                {recoveryAnalytics.timeline.map((event: any, idx: number) => {
+                  const isRecoverySuccess = event.isRecoverySuccess || event.decision === 'payment_verified_recovered' || event.decision === 'link_paid';
+                  const isLink = event.tool?.toLowerCase().includes('link');
+                  const isRetry = event.tool?.toLowerCase().includes('retry');
+                  const isEscalate = event.decision === 'escalate';
+
+                  const eventTime = event.timestamp
+                    ? new Date(event.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                    : '';
+
+                  if (isRecoverySuccess) {
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs transition hover:border-emerald-300"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-black text-slate-900">{event.orderId}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-slate-600 font-medium">{event.customerEmail}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="px-2.5 py-0.5 rounded-md bg-emerald-600 text-white font-bold text-[10px] shadow-2xs">
+                              🎉 Revenue Recovered
+                            </span>
+                          </div>
+                          <p className="text-emerald-900 font-medium text-[11px] leading-relaxed">
+                            {event.reason || 'Payment successfully authorized and confirmed after RevivePay recovery intervention.'}
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="font-mono font-black text-emerald-700 text-sm block">
+                            +₹{event.amount?.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-600">
+                            ✓ Recovered • {eventTime}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs transition hover:border-slate-300"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-slate-900">{event.orderId}</span>
+                          <span className="text-slate-400">•</span>
+                          <span className="text-slate-600">{event.customerEmail}</span>
+                          <span className="text-slate-400">•</span>
+                          {isLink ? (
+                            <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-bold text-[10px]">
+                              AI Action: Payment Link
+                            </span>
+                          ) : isRetry ? (
+                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#0066FF] border border-blue-200 font-bold text-[10px]">
+                              AI Diagnosed: 1-Click Retry
+                            </span>
+                          ) : isEscalate ? (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[10px]">
+                              AI Action: Support Escalated
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px]">
+                              AI Action: Shopper Guidance
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-slate-500 text-[11px] leading-relaxed">
+                          {event.reason}
+                        </p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="font-mono font-medium text-slate-600 block">
+                          ₹{event.amount?.toLocaleString('en-IN')}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          Evaluated • {eventTime}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-10 text-center text-slate-400 text-xs space-y-1">
+                <Sparkles className="w-6 h-6 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600">No agent actions recorded yet.</p>
+                <p>When customer payments fail, RevivePay decision logs and recovery milestones will appear here in real-time.</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -930,7 +1112,7 @@ export const MerchantDashboard: React.FC = () => {
               <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
                 <span className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
-                  <span>Pending Abandoned Checkouts</span>
+                  <span>Pending Payment Failures / Drop-Offs</span>
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-mono font-bold">
                   {abandonedCheckouts.length} Active
@@ -946,12 +1128,12 @@ export const MerchantDashboard: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-slate-900 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-amber-600 font-semibold font-poppins mt-0.5">Drop-off detected</span>
+                        <span className="block text-[10px] text-amber-600 font-semibold font-poppins mt-0.5">RevivePay Monitored</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400 py-8 text-center font-medium">No abandoned checkouts currently pending.</p>
+                  <p className="text-xs text-slate-400 py-8 text-center font-medium">No pending failures currently recorded.</p>
                 )}
               </div>
             </div>
@@ -961,7 +1143,7 @@ export const MerchantDashboard: React.FC = () => {
               <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center justify-between font-poppins">
                 <span className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  <span>Recovered Store Orders</span>
+                  <span>RevivePay Recovered Orders</span>
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold">
                   {recoveredOrders.length} Recovered
@@ -977,7 +1159,7 @@ export const MerchantDashboard: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-emerald-700 font-mono">₹{o.totalAmount?.toLocaleString('en-IN')}</span>
-                        <span className="block text-[10px] text-emerald-600 font-semibold font-poppins mt-0.5">Successfully Recovered</span>
+                        <span className="block text-[10px] text-emerald-600 font-semibold font-poppins mt-0.5">100% Value Recovered</span>
                       </div>
                     </div>
                   ))

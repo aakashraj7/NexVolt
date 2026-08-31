@@ -315,15 +315,19 @@ export const ProductDetailPage: React.FC = () => {
       };
 
       const initiateRes = await api.initiateOrder(orderPayload);
-      const activeOrderId = initiateRes?.orderId || ('NV-' + Date.now());
+      if (!initiateRes?.orderId) {
+        throw new Error('Failed to initiate 1-Click order.');
+      }
+      const activeOrderId = initiateRes.orderId;
 
       setShowOneClickConfirmModal(false);
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       navigate(`/order/processing/${activeOrderId}`, {
         state: {
-          order: {
+          order: initiateRes.order || {
             ...orderPayload,
-            orderId: activeOrderId
+            orderId: activeOrderId,
+            razorpayOrderId: initiateRes.razorpayOrderId
           },
           from: 'product',
           immediateStatus: 'initiating'
