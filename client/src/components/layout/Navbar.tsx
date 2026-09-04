@@ -123,10 +123,10 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full pt-2 sm:pt-3 pb-2 sm:pb-3 px-3 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 w-full pt-2 sm:pt-3 pb-2 sm:pb-3 px-3 sm:px-6 lg:px-8 bg-transparent">
       <div className="max-w-7xl mx-auto">
         {/* Curvey Floating Navbar Capsule */}
-        <div className="bg-white/50 backdrop-blur-2xl border border-white/70 rounded-2xl sm:rounded-full shadow-2xl shadow-blue-500/10 hover:shadow-blue-500/20 px-3.5 sm:px-6 py-2.5 transition-all duration-300">
+        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl sm:rounded-full shadow-[0_10px_32px_-4px_rgba(15,23,42,0.12),0_4px_12px_-2px_rgba(0,102,255,0.08)] hover:shadow-[0_16px_40px_-4px_rgba(15,23,42,0.18),0_6px_16px_-2px_rgba(0,102,255,0.12)] px-3.5 sm:px-6 py-2.5 transition-all duration-300">
           <div className="flex items-center justify-between gap-2.5 lg:gap-5">
             {/* 1. Left: Logo & Merchant Mode Bandage Sticker */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">

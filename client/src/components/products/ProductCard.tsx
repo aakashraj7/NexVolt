@@ -36,7 +36,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isMerchantVie
   const itemInCart = isInCart(product._id);
 
   return (
-    <div className="group bg-white/50 backdrop-blur-2xl rounded-3xl p-4 flex flex-col justify-between border border-white/70 hover:border-[#0066FF]/40 shadow-xl shadow-blue-500/8 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 relative overflow-hidden font-poppins">
+    <div className="group bg-white rounded-3xl p-4 flex flex-col justify-between border border-slate-200/90 hover:border-[#0066FF]/50 shadow-md hover:shadow-xl transition-all duration-300 relative overflow-hidden font-poppins">
       {/* Top Badges & Wishlist Trigger */}
       <div className="relative">
         <div className="flex items-center justify-between gap-2 absolute top-2 left-2 right-2 z-10">
@@ -59,7 +59,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isMerchantVie
               className={`p-2 rounded-full border transition-all ${
                 isFavorited
                   ? 'bg-rose-500 text-white border-rose-400 shadow-md'
-                  : 'bg-white/90 text-slate-400 hover:text-rose-500 border-slate-200 hover:border-rose-200 shadow-sm'
+                  : 'bg-white text-slate-400 hover:text-rose-500 border-slate-200 hover:border-rose-200 shadow-sm'
               }`}
               title={isFavorited ? 'Remove from Wishlist' : 'Add to Wishlist'}
             >
@@ -69,7 +69,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isMerchantVie
         </div>
 
         {/* Product Image Link */}
-        <Link to={`/products/${product.slug}`} className="block relative pt-[85%] overflow-hidden rounded-xl bg-slate-100 mb-4">
+        <Link to={`/products/${product.slug}`} className="block relative pt-[85%] overflow-hidden rounded-xl bg-slate-50 mb-4">
           <img
             src={product.thumbnail}
             alt={product.title}

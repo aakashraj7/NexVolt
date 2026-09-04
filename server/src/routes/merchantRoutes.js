@@ -46,8 +46,15 @@ router.get('/stats', async (req, res) => {
       return sum + itemsSum;
     }, 0);
 
-    const abandonedOrders = allOrders.filter(o => o.checkoutStatus === 'abandoned');
-    const recoveredOrders = allOrders.filter(o => o.checkoutStatus === 'recovered');
+    const abandonedOrders = allOrders.filter(o =>
+      o.paymentStatus === 'failed' ||
+      ((o.revivePayCase?.recoveryAttempts || 0) > 0 && o.paymentStatus !== 'paid')
+    );
+    const recoveredOrders = allOrders.filter(o =>
+      o.checkoutStatus === 'recovered' ||
+      o.revivePayCase?.status === 'recovered' ||
+      o.recoveryMetadata?.isRecovered
+    );
     
     const recoveredRevenue = recoveredOrders.reduce((sum, order) => {
       const merchantItems = order.items.filter(item =>
@@ -56,8 +63,9 @@ router.get('/stats', async (req, res) => {
       return sum + merchantItems.reduce((iSum, item) => iSum + (item.price * item.quantity), 0);
     }, 0);
 
-    const recoveryRate = abandonedOrders.length + recoveredOrders.length > 0
-      ? Math.round((recoveredOrders.length / (abandonedOrders.length + recoveredOrders.length)) * 100)
+    const totalRecoveryPool = abandonedOrders.length + recoveredOrders.length;
+    const recoveryRate = totalRecoveryPool > 0
+      ? Math.round((recoveredOrders.length / totalRecoveryPool) * 100)
       : 0;
 
     res.json({

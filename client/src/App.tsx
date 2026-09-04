@@ -192,7 +192,7 @@ export function App() {
         <ToastProvider>
           <CartProvider>
             <WishlistProvider>
-              <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#F5F8FC] via-[#EEF4FB] to-[#E5EFFB] text-slate-900 selection:bg-[#0066FF] selection:text-white overflow-x-hidden">
+              <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-[#0066FF] selection:text-white overflow-x-hidden">
                 {/* Strict Role Guard & Onboarding Guard */}
                 <RoleRouteGuard />
                 <OnboardingChecker />

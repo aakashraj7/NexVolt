@@ -49,13 +49,15 @@ router.get('/analytics', async (req, res) => {
 
     allOrders.forEach(order => {
       const isPaid = order.paymentStatus === 'paid';
-      const isRecovered = order.checkoutStatus === 'recovered' || order.revivePayCase?.status === 'recovered';
-      const isFailedOrAbandoned = order.paymentStatus === 'failed' || order.checkoutStatus === 'abandoned';
+      const isRecovered = order.checkoutStatus === 'recovered' || order.revivePayCase?.status === 'recovered' || order.recoveryMetadata?.isRecovered;
+      const isRevivePayIntervened = (order.revivePayCase?.recoveryAttempts || 0) > 0 || (order.revivePayCase?.decisionLogs?.length || 0) > 0 || Boolean(order.razorpayFailureData?.code);
+      const isPaymentFailed = order.paymentStatus === 'failed';
 
       if (isRecovered) {
         totalRevenueRecovered += order.totalAmount || 0;
         successfulRecoveriesCount += 1;
-      } else if (isFailedOrAbandoned && !isPaid) {
+      } else if ((isPaymentFailed || isRevivePayIntervened) && !isPaid) {
+        // Only count actual payment failures / RevivePay intervened cases as Revenue at Risk
         totalRevenueAtRisk += order.totalAmount || 0;
         activeCasesCount += 1;
       }
@@ -85,8 +87,10 @@ router.get('/analytics', async (req, res) => {
     // Sort timeline newest first
     timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    const totalCombined = totalRevenueRecovered + totalRevenueAtRisk;
-    const recoveryRate = totalCombined > 0 ? Math.round((totalRevenueRecovered / totalCombined) * 100) : 0;
+    const totalRevivePayCases = successfulRecoveriesCount + activeCasesCount;
+    const recoveryRate = totalRevivePayCases > 0
+      ? Math.round((successfulRecoveriesCount / totalRevivePayCases) * 100)
+      : 0;
 
     res.json({
       success: true,
