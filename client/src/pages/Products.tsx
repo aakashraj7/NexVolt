@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, ArrowUpDown, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { SlidersHorizontal, ArrowUpDown, Loader2, AlertCircle } from 'lucide-react';
 import { ProductCard } from '../components/products/ProductCard';
 import { ProductFilters } from '../components/products/ProductFilters';
 import { api } from '../lib/api';
@@ -77,9 +77,6 @@ export const ProductsPage: React.FC = () => {
       {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-100 text-cyan-800 text-xs font-bold uppercase tracking-wider mb-2 border border-cyan-200">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-600" /> NexVolt Catalog
-          </div>
           <h1 className="text-3xl font-bold text-slate-900 font-heading">
             {selectedCategory ? selectedCategory : searchQuery ? `Results for "${searchQuery}"` : 'All Electronics'}
           </h1>

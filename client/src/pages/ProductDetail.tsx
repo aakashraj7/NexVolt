@@ -27,7 +27,6 @@ import {
   CheckCircle2,
   Lock,
   MessageSquarePlus,
-  Sparkles,
   Truck
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -926,7 +925,7 @@ export const ProductDetailPage: React.FC = () => {
             ))
           ) : (
             <div className="py-8 text-center space-y-2 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-              <Sparkles className="w-6 h-6 text-slate-400 mx-auto" />
+              <Star className="w-6 h-6 text-slate-300 mx-auto" />
               <p className="text-xs font-bold text-slate-600">No customer reviews yet</p>
               <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
                 Be the first verified purchaser of this device to share your ratings and hands-on experience!

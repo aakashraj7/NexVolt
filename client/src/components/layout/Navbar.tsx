@@ -130,7 +130,7 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center justify-between gap-2.5 lg:gap-5">
             {/* 1. Left: Logo & Merchant Mode Bandage Sticker */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <Link to="/" className="shrink-0 flex items-center group">
+              <Link to={isMerchant ? "/merchant/dashboard" : "/"} className="shrink-0 flex items-center group">
                 <img
                   src={logoImg}
                   alt="NexVolt"

@@ -112,6 +112,11 @@ const RoleRouteGuard: React.FC = () => {
 
         // 3. Block ALREADY REGISTERED Merchant from accessing customer auth, cart, wishlist, orders, or consumer profile
         if (isMerchantUser) {
+          // Merchant has nothing to do on consumer homepage -> redirect to merchant dashboard
+          if (location.pathname === '/') {
+            navigate('/merchant/dashboard', { replace: true });
+            return;
+          }
           if (location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up')) {
             showToast('Merchant accounts cannot access the Customer Sign In page.', 'info');
             navigate('/merchant/dashboard', { replace: true });

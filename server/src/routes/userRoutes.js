@@ -812,10 +812,54 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       }
     }
 
+    // Process & validate warehouses
+    let processedWarehouses = user.merchantProfile?.warehouses || [];
+    if (Array.isArray(warehouses)) {
+      processedWarehouses = [];
+      for (let i = 0; i < warehouses.length; i++) {
+        const wh = warehouses[i];
+        const hubLabel = wh.label?.trim() || `Warehouse #${i + 1}`;
+        const hasAnyData = wh.recipientName?.trim() || wh.phone?.trim() || wh.street?.trim() || wh.city?.trim() || wh.postalCode?.trim();
+
+        if (!hasAnyData) {
+          // If a completely blank warehouse was added, skip it rather than crashing
+          continue;
+        }
+
+        const missing = [];
+        if (!wh.recipientName?.trim()) missing.push('Manager Name');
+        if (!wh.phone?.trim()) missing.push('Contact Phone');
+        if (!wh.street?.trim()) missing.push('Street Address');
+        if (!wh.city?.trim()) missing.push('City');
+        if (!wh.state?.trim()) missing.push('State');
+        if (!wh.postalCode?.trim()) missing.push('Postal PIN Code');
+
+        if (missing.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Please complete all required fields for "${hubLabel}": ${missing.join(', ')}.`
+          });
+        }
+
+        processedWarehouses.push({
+          label: hubLabel,
+          recipientName: wh.recipientName.trim(),
+          phone: wh.phone.trim(),
+          street: wh.street.trim(),
+          landmark: wh.landmark ? wh.landmark.trim() : '',
+          city: wh.city.trim(),
+          state: wh.state.trim(),
+          postalCode: wh.postalCode.trim(),
+          country: wh.country || 'India',
+          isDefault: Boolean(wh.isDefault)
+        });
+      }
+    }
+
     const isDone = onboardingCompleted !== undefined ? Boolean(onboardingCompleted) : true;
     user.isMerchant = true;
     user.role = 'merchant';
-    user.onboardingCompleted = isDone; // <-- Sets top-level onboardingCompleted!
+    user.onboardingCompleted = isDone;
     user.merchantProfile = {
       storeName: storeName !== undefined ? storeName : (user.merchantProfile?.storeName || ''),
       businessType: businessType !== undefined ? businessType : (user.merchantProfile?.businessType || ''),
@@ -825,7 +869,7 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       businessPhone: businessPhone !== undefined ? businessPhone : (user.merchantProfile?.businessPhone || ''),
       supportEmail: supportEmail !== undefined ? supportEmail.toLowerCase() : (user.merchantProfile?.supportEmail || user.email),
       website: website !== undefined ? website : (user.merchantProfile?.website || ''),
-      warehouses: warehouses && warehouses.length > 0 ? warehouses : (user.merchantProfile?.warehouses || []),
+      warehouses: processedWarehouses,
       onboardingCompleted: isDone
     };
 
@@ -838,7 +882,13 @@ router.post('/merchant-profile/:userId', async (req, res) => {
       user
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error saving merchant profile', error: error.message });
+    console.error('Error saving merchant profile:', error);
+    let errMsg = error.message || 'Error saving merchant profile';
+    if (error.name === 'ValidationError') {
+      const fieldErrors = Object.values(error.errors).map(e => e.message);
+      errMsg = `Validation error: ${fieldErrors.join(', ')}`;
+    }
+    res.status(400).json({ success: false, message: errMsg, error: errMsg });
   }
 });
 

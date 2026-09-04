@@ -62,6 +62,7 @@ interface Warehouse {
   recipientName: string;
   phone: string;
   street: string;
+  landmark?: string;
   city: string;
   state: string;
   postalCode: string;
@@ -173,10 +174,11 @@ export const MerchantProfilePage: React.FC = () => {
           setWarehouses(
             mp.warehouses.map((w: any, idx: number) => ({
               id: w._id || `wh-${idx}`,
-              label: w.label || 'Primary Dispatch Hub',
+              label: w.label || `Warehouse ${idx + 1}`,
               recipientName: w.recipientName || ownerFullName || storeName,
               phone: w.phone || businessPhone,
               street: w.street || '',
+              landmark: w.landmark || '',
               city: w.city || '',
               state: w.state || '',
               postalCode: w.postalCode || '',
@@ -234,19 +236,37 @@ export const MerchantProfilePage: React.FC = () => {
   };
 
   const handleAddWarehouse = () => {
+    const newId = `wh-${Date.now()}`;
     const newWh: Warehouse = {
-      id: `wh-${Date.now()}`,
+      id: newId,
       label: `Warehouse ${warehouses.length + 1}`,
-      recipientName: ownerFullName || storeName || 'Dispatch Manager',
+      recipientName: ownerFullName || storeName || '',
       phone: businessPhone || '',
       street: '',
+      landmark: '',
       city: '',
-      state: '',
+      state: INDIAN_STATES[0],
       postalCode: '',
       country: 'India',
       isDefault: warehouses.length === 0
     };
     setWarehouses(prev => [...prev, newWh]);
+
+    // Automatically scroll to the newly added hub and focus its facility name
+    setTimeout(() => {
+      const el = document.getElementById(newId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-[#0066FF]', 'ring-offset-2');
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-[#0066FF]', 'ring-offset-2');
+        }, 1500);
+        const nameInput = el.querySelector('input');
+        if (nameInput) {
+          nameInput.focus();
+        }
+      }
+    }, 80);
   };
 
   const handleRemoveWarehouse = (id: string) => {
@@ -267,6 +287,27 @@ export const MerchantProfilePage: React.FC = () => {
     if (!ownerFullName.trim()) {
       showToast('Please enter your full legal name.', 'error');
       return;
+    }
+
+    if (ownerPersonalPhone.trim() && ownerPersonalPhone.replace(/\D/g, '').length < 10) {
+      showToast('Please enter a valid 10-digit personal mobile phone number.', 'error');
+      return;
+    }
+
+    const hasResidential = residentialStreet.trim() || residentialCity.trim() || residentialPostalCode.trim();
+    if (hasResidential) {
+      if (!residentialStreet.trim()) {
+        showToast('Please enter your residential Flat / House / Street address.', 'error');
+        return;
+      }
+      if (!residentialCity.trim()) {
+        showToast('Please enter your residential City.', 'error');
+        return;
+      }
+      if (!residentialPostalCode.trim() || residentialPostalCode.replace(/\D/g, '').length !== 6) {
+        showToast('Please enter a valid 6-digit residential postal PIN code.', 'error');
+        return;
+      }
     }
 
     setSavingPersonal(true);
@@ -304,7 +345,8 @@ export const MerchantProfilePage: React.FC = () => {
       await fetchMerchantProfile();
     } catch (err: any) {
       console.error('Error saving personal details:', err);
-      showToast(err.message || 'Failed to update personal details.', 'error');
+      const serverMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to update personal details.';
+      showToast(serverMsg, 'error');
     } finally {
       setSavingPersonal(false);
     }
@@ -315,9 +357,65 @@ export const MerchantProfilePage: React.FC = () => {
     e.preventDefault();
     if (!user) return;
 
+    // 1. Validate Store Name
     if (!storeName.trim()) {
-      showToast('Please enter your Store / Brand name.', 'error');
+      showToast('Please enter your Store / Brand Display Name.', 'error');
       return;
+    }
+
+    // 2. Validate GSTIN if provided
+    if (gstin.trim() && gstin.trim().length !== 15) {
+      showToast('GSTIN must be exactly 15 characters long (e.g. 29ABCDE1234F1Z5).', 'error');
+      return;
+    }
+
+    // 3. Validate Business Phone if provided
+    if (businessPhone.trim() && businessPhone.replace(/\D/g, '').length < 10) {
+      showToast('Please enter a valid 10-digit customer support phone number.', 'error');
+      return;
+    }
+
+    // 4. Validate Support Email if provided
+    if (supportEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supportEmail.trim())) {
+      showToast('Please enter a valid customer support email address (e.g. support@yourstore.com).', 'error');
+      return;
+    }
+
+    // 5. Validate Warehouses
+    for (let i = 0; i < warehouses.length; i++) {
+      const wh = warehouses[i];
+      const hubName = wh.label?.trim() || `Warehouse #${i + 1}`;
+
+      const hasAnyData = wh.recipientName?.trim() || wh.phone?.trim() || wh.street?.trim() || wh.city?.trim() || wh.postalCode?.trim();
+      if (!hasAnyData) {
+        // Untouched warehouse card, skip validation
+        continue;
+      }
+
+      if (!wh.recipientName?.trim()) {
+        showToast(`Please enter the Contact / Dispatch Manager Name for "${hubName}".`, 'error');
+        return;
+      }
+      if (!wh.phone?.trim() || wh.phone.replace(/\D/g, '').length < 10) {
+        showToast(`Please enter a valid 10-digit Dispatch Phone for "${hubName}".`, 'error');
+        return;
+      }
+      if (!wh.street?.trim()) {
+        showToast(`Please enter the Street / Building Address for "${hubName}".`, 'error');
+        return;
+      }
+      if (!wh.city?.trim()) {
+        showToast(`Please enter the City for "${hubName}".`, 'error');
+        return;
+      }
+      if (!wh.state?.trim()) {
+        showToast(`Please select the State for "${hubName}".`, 'error');
+        return;
+      }
+      if (!wh.postalCode?.trim() || wh.postalCode.replace(/\D/g, '').length !== 6) {
+        showToast(`Please enter a valid 6-digit Postal PIN Code for "${hubName}".`, 'error');
+        return;
+      }
     }
 
     setSavingStore(true);
@@ -339,17 +437,20 @@ export const MerchantProfilePage: React.FC = () => {
         email: user.primaryEmailAddress?.emailAddress || supportEmail.trim().toLowerCase(),
         website: website.trim(),
         authProvider,
-        warehouses: warehouses.map(w => ({
-          label: w.label,
-          recipientName: w.recipientName,
-          phone: w.phone,
-          street: w.street,
-          city: w.city,
-          state: w.state,
-          postalCode: w.postalCode,
-          country: w.country,
-          isDefault: w.isDefault
-        }))
+        warehouses: warehouses
+          .filter(wh => wh.recipientName?.trim() || wh.phone?.trim() || wh.street?.trim() || wh.city?.trim() || wh.postalCode?.trim())
+          .map(w => ({
+            label: w.label || 'Main Warehouse',
+            recipientName: w.recipientName || '',
+            phone: w.phone || '',
+            street: w.street || '',
+            landmark: w.landmark || '',
+            city: w.city || '',
+            state: w.state || '',
+            postalCode: w.postalCode || '',
+            country: w.country || 'India',
+            isDefault: !!w.isDefault
+          }))
       };
 
       await api.updateMerchantProfile(user.id, payload);
@@ -357,7 +458,8 @@ export const MerchantProfilePage: React.FC = () => {
       await fetchMerchantProfile();
     } catch (err: any) {
       console.error('Error saving merchant profile:', err);
-      showToast(err.message || 'Failed to update store profile.', 'error');
+      const serverMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to update store profile.';
+      showToast(serverMsg, 'error');
     } finally {
       setSavingStore(false);
     }
@@ -929,23 +1031,37 @@ export const MerchantProfilePage: React.FC = () => {
                 <div className="space-y-4">
                   {warehouses.length > 0 ? (
                     warehouses.map((wh, idx) => (
-                      <div key={wh.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-[#0066FF] text-white font-bold text-xs flex items-center justify-center font-mono">
+                      <div key={wh.id} id={wh.id} className="p-4 sm:p-6 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-5 scroll-mt-24 transition-all duration-300">
+                        {/* Header Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+                          <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+                            <span className="w-7 h-7 rounded-xl bg-[#0066FF] text-white font-bold text-xs flex items-center justify-center font-mono shrink-0 shadow-xs">
                               {idx + 1}
                             </span>
-                            <input
-                              type="text"
-                              value={wh.label}
-                              onChange={(e) => handleWarehouseChange(wh.id, 'label', e.target.value)}
-                              placeholder="Hub Label (e.g. Bengaluru Main Hub)"
-                              className="font-bold text-xs text-slate-900 bg-transparent border-b border-transparent focus:border-[#0066FF] outline-none"
-                            />
-                            {wh.isDefault && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            <div className="flex items-center gap-2 flex-1 max-w-sm">
+                              <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                              <input
+                                type="text"
+                                value={wh.label}
+                                onChange={(e) => handleWarehouseChange(wh.id, 'label', e.target.value)}
+                                placeholder="Facility / Hub Name (e.g. Main Central Warehouse)"
+                                className="font-bold text-xs text-slate-900 bg-white border border-slate-300 focus:border-[#0066FF] rounded-lg px-2.5 py-1.5 outline-none w-full shadow-2xs"
+                              />
+                            </div>
+                            {wh.isDefault ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                                 Primary Origin
                               </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWarehouses(prev => prev.map(w => ({ ...w, isDefault: w.id === wh.id })));
+                                }}
+                                className="text-[11px] font-bold text-[#0066FF] hover:underline shrink-0"
+                              >
+                                Set as Primary Origin
+                              </button>
                             )}
                           </div>
 
@@ -959,49 +1075,110 @@ export const MerchantProfilePage: React.FC = () => {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <input
-                            type="text"
-                            value={wh.recipientName}
-                            onChange={(e) => handleWarehouseChange(wh.id, 'recipientName', e.target.value)}
-                            placeholder="Manager Name"
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#0066FF]"
-                          />
-                          <input
-                            type="tel"
-                            value={wh.phone}
-                            onChange={(e) => handleWarehouseChange(wh.id, 'phone', e.target.value)}
-                            placeholder="Dispatch Phone"
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#0066FF]"
-                          />
-                          <input
-                            type="text"
-                            value={wh.street}
-                            onChange={(e) => handleWarehouseChange(wh.id, 'street', e.target.value)}
-                            placeholder="Street / Industrial Estate"
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#0066FF]"
-                          />
-                          <input
-                            type="text"
-                            value={wh.city}
-                            onChange={(e) => handleWarehouseChange(wh.id, 'city', e.target.value)}
-                            placeholder="City"
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#0066FF]"
-                          />
-                          <input
-                            type="text"
-                            value={wh.state}
-                            onChange={(e) => handleWarehouseChange(wh.id, 'state', e.target.value)}
-                            placeholder="State"
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#0066FF]"
-                          />
-                          <input
-                            type="text"
-                            value={wh.postalCode}
-                            onChange={(e) => handleWarehouseChange(wh.id, 'postalCode', e.target.value)}
-                            placeholder="PIN Code"
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#0066FF]"
-                          />
+                        {/* Fields Grid with Clear Visible Labels */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* Manager Name */}
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              Dispatch Manager / Contact Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={wh.recipientName}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'recipientName', e.target.value)}
+                              placeholder="e.g. S Aakashraj IT"
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition"
+                            />
+                          </div>
+
+                          {/* Contact Phone */}
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              Dispatch Contact Phone *
+                            </label>
+                            <input
+                              type="tel"
+                              value={wh.phone}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                              placeholder="e.g. 9876543210"
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-mono font-semibold text-slate-900 outline-none transition"
+                            />
+                          </div>
+
+                          {/* Street Address */}
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              Flat / Plot / Building / Street Address *
+                            </label>
+                            <input
+                              type="text"
+                              value={wh.street}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'street', e.target.value)}
+                              placeholder="e.g. Plot 14, Electronic City Phase 1, Industrial Area"
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition"
+                            />
+                          </div>
+
+                          {/* Landmark */}
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              Landmark (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={wh.landmark || ''}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'landmark', e.target.value)}
+                              placeholder="e.g. Near Metro Station / Toll Gate"
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition"
+                            />
+                          </div>
+
+                          {/* City */}
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              City *
+                            </label>
+                            <input
+                              type="text"
+                              value={wh.city}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'city', e.target.value)}
+                              placeholder="e.g. Chennai"
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition"
+                            />
+                          </div>
+
+                          {/* State */}
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              State *
+                            </label>
+                            <select
+                              value={wh.state}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'state', e.target.value)}
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition cursor-pointer"
+                            >
+                              <option value="">Select State</option>
+                              {INDIAN_STATES.map((st) => (
+                                <option key={st} value={st}>
+                                  {st}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* PIN Code */}
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 font-poppins">
+                              Postal PIN Code *
+                            </label>
+                            <input
+                              type="text"
+                              value={wh.postalCode}
+                              onChange={(e) => handleWarehouseChange(wh.id, 'postalCode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="e.g. 600001"
+                              className="w-full bg-white border border-slate-300 focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs font-mono font-semibold text-slate-900 outline-none transition"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))

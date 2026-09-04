@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import {
   Zap,
   ArrowRight,
@@ -23,6 +24,21 @@ import { api } from '../lib/api';
 import type { Product, Category } from '../types';
 
 export const Home: React.FC = () => {
+  const { isSignedIn, user } = useUser();
+  const navigate = useNavigate();
+
+  // Redirect merchant directly to merchant dashboard
+  useEffect(() => {
+    if (!isSignedIn || !user) return;
+    api.checkUserRole(user.id, user.primaryEmailAddress?.emailAddress)
+      .then((roleData) => {
+        if (roleData?.isMerchant === true || roleData?.role === 'merchant') {
+          navigate('/merchant/dashboard', { replace: true });
+        }
+      })
+      .catch(() => {});
+  }, [isSignedIn, user, navigate]);
+
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [dealProducts, setDealProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -350,9 +366,6 @@ export const Home: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="rounded-3xl p-8 sm:p-12 bg-gradient-to-r from-cyan-50 via-blue-50 to-indigo-50 border border-cyan-200 text-center relative overflow-hidden shadow-sm">
           <div className="max-w-2xl mx-auto space-y-4 relative z-10">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-100 border border-cyan-300 text-cyan-800 text-xs font-bold uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5 text-cyan-600" /> NexVolt VIP Perks
-            </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-heading">
               Unlock Flat 10% Off Instant Discount
             </h2>
