@@ -9,7 +9,7 @@ import {
   Plus,
   Trash2,
   Edit,
-  Sparkles,
+  ShieldCheck,
   CheckCircle2,
   Loader2,
   Clock,
@@ -476,7 +476,7 @@ export const MerchantDashboard: React.FC = () => {
           <div className="flex items-center justify-between text-purple-700 text-xs font-bold font-poppins">
             <span>AI Recovered Sales</span>
             <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
-              <Sparkles className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <p className="text-2xl font-extrabold text-purple-900 font-mono">
@@ -532,7 +532,7 @@ export const MerchantDashboard: React.FC = () => {
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
+            <Activity className="w-4 h-4" />
             <span>AI Revenue Recovery Agent</span>
           </button>
         </div>
@@ -915,7 +915,7 @@ export const MerchantDashboard: React.FC = () => {
           <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-3 font-poppins">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#0066FF] border border-blue-200/80 text-xs font-bold font-poppins">
-                <Sparkles className="w-3.5 h-3.5 text-[#0066FF]" />
+                <ShieldCheck className="w-3.5 h-3.5 text-[#0066FF]" />
                 <span>RevivePay AI Revenue Recovery Agent</span>
               </div>
               <div className="flex items-center gap-2 bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200">
@@ -1099,7 +1099,7 @@ export const MerchantDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="py-10 text-center text-slate-400 text-xs space-y-1">
-                <Sparkles className="w-6 h-6 text-slate-300 mx-auto" />
+                <Activity className="w-6 h-6 text-slate-300 mx-auto" />
                 <p className="font-semibold text-slate-600">No agent actions recorded yet.</p>
                 <p>When customer payments fail, RevivePay decision logs and recovery milestones will appear here in real-time.</p>
               </div>

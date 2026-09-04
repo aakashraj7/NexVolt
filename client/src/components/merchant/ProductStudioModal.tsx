@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   Plus,
   Loader2,
-  Sparkles,
+  Package,
   Eye,
   Layers,
   Tag,
@@ -303,7 +303,7 @@ export const ProductStudioModal: React.FC<ProductStudioModalProps> = ({
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0066FF] to-blue-600 text-white flex items-center justify-center shadow-sm">
-              <Sparkles className="w-5 h-5" />
+              <Package className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2 font-poppins">

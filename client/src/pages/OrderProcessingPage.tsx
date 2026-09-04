@@ -16,7 +16,6 @@ import {
   CreditCard,
   ArrowLeft,
   ShoppingBag,
-  Sparkles,
   Copy,
   ExternalLink,
   QrCode,
@@ -715,7 +714,7 @@ export const OrderProcessingPage: React.FC = () => {
             <div className="p-5 rounded-3xl bg-gradient-to-br from-blue-50/90 via-indigo-50/50 to-white border border-blue-200/80 shadow-xs space-y-3.5 relative overflow-hidden">
               <div className="flex items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0066FF] text-white text-[11px] font-bold shadow-2xs">
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <ShieldCheck className="w-3.5 h-3.5" />
                   <span>RevivePay AI Recovery</span>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">

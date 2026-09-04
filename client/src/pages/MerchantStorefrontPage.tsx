@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
@@ -6,7 +6,10 @@ import {
   Search,
   Package,
   Loader2,
-  Plus
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { ProductCard } from '../components/products/ProductCard';
@@ -22,6 +25,17 @@ export const MerchantStorefrontPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'rating'>('featured');
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategories = (direction: 'left' | 'right') => {
+    if (categoryScrollRef.current) {
+      const scrollAmount = 240;
+      categoryScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -132,58 +146,101 @@ export const MerchantStorefrontPage: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar for Merchant Products */}
-      <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Search inside merchant store */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search inside your store..."
-            className="w-full bg-slate-50 border border-slate-200 focus:border-[#0066FF] rounded-xl py-2 pl-10 pr-4 text-xs text-slate-900 outline-none transition"
-          />
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3.5 overflow-hidden">
+        {/* Top Tier: Search & Sort Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Search inside merchant store */}
+          <div className="relative w-full sm:w-80 md:w-96">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search inside your store..."
+              className="w-full bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#0066FF] rounded-xl py-2 pl-10 pr-9 text-xs font-medium text-slate-900 outline-none transition shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Sort Selector */}
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <span className="text-xs text-slate-500 font-semibold">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="bg-slate-50 hover:bg-slate-100 border border-slate-200 focus:border-[#0066FF] rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none transition cursor-pointer shadow-2xs"
+            >
+              <option value="featured">Featured First</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="rating">Top Rated</option>
+            </select>
+          </div>
         </div>
 
-        {/* Category Pills and Sort */}
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto no-scrollbar">
+        {/* Subtle separator */}
+        <div className="h-px bg-slate-200/60 w-full" />
+
+        {/* Bottom Tier: Category Navigation Carousel / Track */}
+        <div className="relative flex items-center min-w-0 w-full">
           <button
             type="button"
-            onClick={() => setSelectedCategory('')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === ''
-                ? 'bg-[#0066FF] text-white shadow-xs'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-            }`}
+            onClick={() => scrollCategories('left')}
+            className="hidden sm:flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200/80 shadow-2xs shrink-0 mr-2 transition cursor-pointer"
+            aria-label="Scroll categories left"
           >
-            All Categories ({products.length})
+            <ChevronLeft className="w-4 h-4" />
           </button>
 
-          {categories.map((cat) => (
+          <div
+            ref={categoryScrollRef}
+            className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none scroll-smooth min-w-0 flex-1"
+          >
             <button
-              key={cat}
               type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                selectedCategory === cat
+              onClick={() => setSelectedCategory('')}
+              className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                selectedCategory === ''
                   ? 'bg-[#0066FF] text-white shadow-xs'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
               }`}
             >
-              {cat}
+              All Categories ({products.length})
             </button>
-          ))}
 
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 outline-none transition cursor-pointer"
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-[#0066FF] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => scrollCategories('right')}
+            className="hidden sm:flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200/80 shadow-2xs shrink-0 ml-2 transition cursor-pointer"
+            aria-label="Scroll categories right"
           >
-            <option value="featured">Featured First</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="rating">Top Rated</option>
-          </select>
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
