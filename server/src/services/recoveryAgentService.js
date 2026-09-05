@@ -510,3 +510,45 @@ export async function syncPaymentLinkStatus(orderId) {
   }
 }
 
+/**
+ * Automatically checks and synchronizes all unpaid orders that have an active Razorpay Payment Link.
+ * Guarantees that any link paid via phone/external browser tab is immediately marked recovered on the merchant dashboard.
+ * @returns {Promise<Array>} List of successfully recovered orders
+ */
+export async function syncAllPendingPaymentLinks() {
+  if (!razorpayInstance) return [];
+
+  try {
+    const pendingOrders = await Order.find({
+      paymentStatus: { $ne: 'paid' },
+      $or: [
+        { 'revivePayCase.razorpayPaymentLinkId': { $exists: true, $ne: '' } },
+        { 'revivePayCase.status': 'link_generated' }
+      ]
+    });
+
+    const recoveredList = [];
+    for (const order of pendingOrders) {
+      if (!order.revivePayCase?.razorpayPaymentLinkId) continue;
+      try {
+        const syncResult = await syncPaymentLinkStatus(order.orderId);
+        if (syncResult?.paid && syncResult.order) {
+          recoveredList.push(syncResult.order);
+        }
+      } catch (err) {
+        console.warn(`Could not sync payment link for order #${order.orderId}:`, err.message);
+      }
+    }
+
+    if (recoveredList.length > 0) {
+      console.log(`RevivePay: Successfully auto-synchronized ${recoveredList.length} paid Razorpay link(s) to RECOVERED.`);
+    }
+
+    return recoveredList;
+  } catch (err) {
+    console.error('Error in syncAllPendingPaymentLinks:', err);
+    return [];
+  }
+}
+
+

@@ -1,12 +1,178 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import {
   analyzeRecoveryCase,
   executeGeneratePaymentLink,
-  syncPaymentLinkStatus
+  syncPaymentLinkStatus,
+  syncAllPendingPaymentLinks
 } from '../services/recoveryAgentService.js';
 
 const router = express.Router();
+
+// POST /api/recovery/simulate-scenario - Interactive Judge Sandbox simulator
+router.post('/simulate-scenario', async (req, res) => {
+  try {
+    const { scenario = 'bank_timeout', orderId } = req.body || {};
+
+    let order = null;
+    if (orderId) {
+      order = await Order.findOne({ orderId });
+    }
+
+    if (!order) {
+      // Find latest pending/abandoned order or create a realistic electronics demo order
+      order = await Order.findOne({}).sort({ createdAt: -1 });
+      if (!order) {
+        order = new Order({
+          orderId: 'NV-SIM-' + Math.floor(100000 + Math.random() * 900000),
+          userId: 'judge_sandbox_user',
+          customerDetails: {
+            name: 'Priya Sharma (Judge Sandbox)',
+            email: 'priya.sharma@example.com',
+            phone: '9876543210',
+            address: {
+              street: '402 Cyber Heights, Indiranagar',
+              city: 'Bengaluru',
+              state: 'Karnataka',
+              pincode: '560038',
+              country: 'India'
+            }
+          },
+          items: [{
+            product: new mongoose.Types.ObjectId(),
+            title: 'Sony WH-1000XM5 Noise-Cancelling Headphones',
+            thumbnail: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80',
+            price: 29990,
+            quantity: 1
+          }],
+          subtotal: 25415,
+          tax: 4575,
+          shipping: 0,
+          discountAmount: 0,
+          totalAmount: 29990,
+          currency: 'INR',
+          paymentMethod: 'Razorpay',
+          paymentStatus: 'pending',
+          checkoutStatus: 'initiated'
+        });
+        await order.save();
+      }
+    }
+
+    if (scenario === 'simulate_recovery') {
+      order.paymentStatus = 'paid';
+      order.checkoutStatus = 'recovered';
+      order.failureReason = '';
+      order.paymentId = 'pay_sim_' + Date.now();
+      order.razorpayPaymentId = order.paymentId;
+      if (order.recoveryMetadata) order.recoveryMetadata.isRecovered = true;
+      order.merchantNotified = true;
+      if (!order.revivePayCase) order.revivePayCase = {};
+      order.revivePayCase.status = 'recovered';
+      order.revivePayCase.recoveredAt = new Date();
+      order.revivePayCase.recoveredAmount = order.totalAmount;
+      if (!order.revivePayCase.decisionLogs) order.revivePayCase.decisionLogs = [];
+      order.revivePayCase.decisionLogs.push({
+        timestamp: new Date(),
+        decision: 'payment_verified_recovered',
+        reason: 'Payment successfully completed and verified via Razorpay Recovery intervention',
+        tool: 'retryPayment',
+        result: 'recovered',
+        attemptNumber: order.revivePayCase.recoveryAttempts || 1
+      });
+      await order.save();
+      return res.json({
+        success: true,
+        scenario,
+        orderId: order.orderId,
+        order,
+        decision: {
+          decision: 'recovered',
+          reason: 'Revenue successfully recovered at 100% full order value (₹0 discounts)',
+          customerMessage: 'Payment confirmed! Thank you for your purchase.'
+        }
+      });
+    }
+
+    let failureReason = '';
+    let code = '';
+    let source = '';
+    let step = '';
+    let description = '';
+    let targetAttempts = 1;
+
+    switch (scenario) {
+      case 'popup_blocked':
+        failureReason = 'Customer mobile browser blocked Razorpay 3DS popup window';
+        code = 'BAD_REQUEST_ERROR';
+        source = 'customer';
+        step = 'payment_initiation';
+        description = 'Mobile browser blocked popup window. Customer prompted for secure direct payment link.';
+        targetAttempts = 2;
+        break;
+
+      case 'hard_decline_escalate':
+        failureReason = 'Card issuer declined authorization repeatedly (Limit exceeded or blocked)';
+        code = 'PAYMENT_RISK_CHECK_FAILED';
+        source = 'bank';
+        step = 'payment_authorization';
+        description = 'Card issuer hard decline. Maximum safe automated attempts (3/3) reached.';
+        targetAttempts = 3;
+        break;
+
+      case 'bank_timeout':
+      default:
+        failureReason = 'Bank gateway timeout during OTP 3DS authentication';
+        code = 'GATEWAY_ERROR';
+        source = 'gateway';
+        step = 'payment_authorization';
+        description = 'Intermittent bank switch timeout during OTP verification step.';
+        targetAttempts = 1;
+        break;
+    }
+
+    order.paymentStatus = 'failed';
+    order.failureReason = failureReason;
+    order.checkoutStatus = 'abandoned';
+    order.abandonedAt = new Date();
+    order.razorpayFailureData = {
+      code,
+      description,
+      source,
+      step,
+      reason: failureReason,
+      failedAt: new Date()
+    };
+    if (!order.revivePayCase) order.revivePayCase = {};
+    order.revivePayCase.recoveryAttempts = Math.max(0, targetAttempts - 1);
+    await order.save();
+
+    const analysis = await analyzeRecoveryCase(order.orderId, { forceReanalysis: true });
+
+    // For popup_blocked scenario, proactively generate the payment link so judge sees link ready
+    if (scenario === 'popup_blocked') {
+      try {
+        await executeGeneratePaymentLink(order.orderId);
+      } catch (linkErr) {
+        console.warn('Sandbox link pre-creation notice:', linkErr.message);
+      }
+    }
+
+    const updatedOrder = await Order.findOne({ orderId: order.orderId });
+
+    res.json({
+      success: true,
+      scenario,
+      orderId: updatedOrder.orderId,
+      order: updatedOrder,
+      decision: analysis.decision
+    });
+  } catch (error) {
+    console.error('Error in sandbox simulation:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // POST /api/recovery/analyze/:orderId - Trigger RevivePay AI Failure Analysis
 router.post('/analyze/:orderId', async (req, res) => {
@@ -54,9 +220,23 @@ router.get('/sync-link/:orderId', async (req, res) => {
   }
 });
 
+// POST /api/recovery/sync-all - Synchronize all pending Razorpay payment links across the store
+router.post('/sync-all', async (req, res) => {
+  try {
+    const recovered = await syncAllPendingPaymentLinks();
+    res.json({ success: true, count: recovered.length, recovered });
+  } catch (error) {
+    console.error('Error syncing all payment links:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/recovery/analytics - RevivePay Telemetry & Recovery Dashboard Metrics
 router.get('/analytics', async (req, res) => {
   try {
+    // Proactively sync all pending payment links with Razorpay before computing metrics
+    await syncAllPendingPaymentLinks();
+
     const allOrders = await Order.find({}).sort({ createdAt: -1 });
 
     let totalRevenueAtRisk = 0;
@@ -133,6 +313,8 @@ router.get('/analytics', async (req, res) => {
 // GET /api/recovery/cases - List all active & historical recovery cases
 router.get('/cases', async (req, res) => {
   try {
+    await syncAllPendingPaymentLinks();
+
     const ordersWithCases = await Order.find({
       $or: [
         { 'revivePayCase.recoveryAttempts': { $gt: 0 } },

@@ -25,6 +25,7 @@ import { api } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import { useCart } from '../context/CartContext';
 import type { Order, RevivePayCase } from '../types';
+import { JudgeDemoSandbox } from '../components/merchant/JudgeDemoSandbox';
 
 declare global {
   interface Window {
@@ -60,6 +61,7 @@ export const OrderProcessingPage: React.FC = () => {
   const [isAnalyzingRevivePay, setIsAnalyzingRevivePay] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isCheckingLink, setIsCheckingLink] = useState(false);
 
   // 1. Scroll To Top on mount and whenever stage updates
   useEffect(() => {
@@ -428,6 +430,29 @@ export const OrderProcessingPage: React.FC = () => {
     }
   };
 
+  const handleManualSyncPaymentLink = async () => {
+    if (!order?.orderId) return;
+    try {
+      setIsCheckingLink(true);
+      const syncRes = await api.syncPaymentLinkStatus(order.orderId);
+      if (syncRes?.paid && syncRes.order) {
+        setOrder(syncRes.order);
+        setStage('success');
+        clearCart();
+        showToast('Payment confirmed! Your order is placed.', 'success');
+        try {
+          confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
+        } catch {}
+      } else {
+        showToast('Payment not detected yet. If completed, please wait a few seconds and try again.', 'info');
+      }
+    } catch (err) {
+      showToast('Could not verify status at this moment. Retrying...', 'error');
+    } finally {
+      setIsCheckingLink(false);
+    }
+  };
+
   const handleSmartBack = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (location.state?.from === 'cart') {
@@ -516,6 +541,30 @@ export const OrderProcessingPage: React.FC = () => {
             </span>
           )}
         </div>
+      </div>
+
+      {/* Track 3 Judge Evaluation Sandbox */}
+      <div className="mb-8">
+        <JudgeDemoSandbox
+          orderId={order.orderId}
+          onScenarioExecuted={(result) => {
+            if (result?.order) {
+              setOrder(result.order);
+              if (result.order.paymentStatus === 'paid') {
+                setStage('success');
+                try {
+                  confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
+                } catch {}
+              } else if (result.order.paymentStatus === 'failed') {
+                setStage('failed');
+                setFailureReason(result.order.failureReason || 'Payment failed');
+                if (result.order.revivePayCase) {
+                  setRevivePayCase(result.order.revivePayCase);
+                }
+              }
+            }
+          }}
+        />
       </div>
 
       {/* ======================= VIEW A: INITIATING / AWAITING ======================= */}
@@ -800,6 +849,19 @@ export const OrderProcessingPage: React.FC = () => {
                       <span>Open Secure Razorpay Link</span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
+                    <button
+                      type="button"
+                      onClick={handleManualSyncPaymentLink}
+                      disabled={isCheckingLink}
+                      className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs text-center flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer disabled:opacity-60"
+                    >
+                      {isCheckingLink ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0066FF]" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5 text-[#0066FF]" />
+                      )}
+                      <span>{isCheckingLink ? 'Verifying...' : 'Check Payment Status'}</span>
+                    </button>
                   </div>
                   <p className="text-[10px] text-slate-500 font-medium">
                     ⚡ You can pay via UPI, Cards, or NetBanking on any device. Once paid, this page will automatically confirm your order.

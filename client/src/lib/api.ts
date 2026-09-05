@@ -420,6 +420,30 @@ export const api = {
     return null;
   },
 
+  async syncAllPaymentLinks() {
+    try {
+      const res = await apiClient.post('/recovery/sync-all');
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend syncAllPaymentLinks error:', err);
+    }
+    return { success: false, count: 0 };
+  },
+
+  async simulateRecoveryScenario(payload: { scenario: string; orderId?: string }) {
+    try {
+      const res = await apiClient.post('/recovery/simulate-scenario', payload);
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err: any) {
+      console.warn('Backend simulateRecoveryScenario error:', err);
+      throw err;
+    }
+  },
+
   async getRecoveryAnalytics() {
     try {
       const res = await apiClient.get('/recovery/analytics');
