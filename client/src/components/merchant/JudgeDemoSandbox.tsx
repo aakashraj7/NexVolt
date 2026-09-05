@@ -105,15 +105,15 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-[#0066FF] border border-blue-200/80 font-mono">
-                Razorpay Buildathon Track 03
+                Autonomous Recovery Engine
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Agent Sandbox
+                Live Agent Simulator
               </span>
             </div>
             <h3 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight mt-0.5">
-              Interactive Judge Evaluation & Telemetry Simulator
+              Recovery Scenario & Telemetry Simulator
             </h3>
           </div>
         </div>
@@ -126,7 +126,7 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
               className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
               <Terminal className="w-3.5 h-3.5 text-[#0066FF]" />
-              <span>Inspect AI Trace</span>
+              <span>Inspect Decision Trace</span>
             </button>
           )}
 
@@ -145,7 +145,7 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
       {isOpen && (
         <div className="pt-4 space-y-4 animate-in fade-in duration-200">
           <p className="text-xs text-slate-500 font-medium leading-relaxed">
-            Test how RevivePay's Gemini 2.5 Flash agent autonomously diagnoses payment failures, selects bounded tools, and preserves 100% merchant profit margin with zero discounts.
+            Test how RevivePay autonomously diagnoses payment failures, selects policy-bounded recovery routes, and preserves 100% merchant profit margin with zero discounts.
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-center">
@@ -182,7 +182,7 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
                 {isRunning ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>Gemini Reasoning...</span>
+                    <span>Analyzing Telemetry...</span>
                   </>
                 ) : (
                   <>
@@ -219,7 +219,7 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
                   <Terminal className="w-4 h-4" />
                 </div>
                 <h4 className="text-base font-bold text-slate-900">
-                  Gemini Function Calling & Guardrail Trace
+                  Autonomous Policy & Execution Trace
                 </h4>
               </div>
               <button
@@ -265,7 +265,7 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
                 Autonomous AI Decision Reasoning:
               </span>
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-mono text-[11px] leading-relaxed">
-                {lastResult.decision?.reason || 'Tool selected by Gemini 2.5 Flash function calling based on failure telemetry.'}
+                {lastResult.decision?.reason || 'Tool selected by autonomous recovery policy based on failure telemetry.'}
               </div>
             </div>
 

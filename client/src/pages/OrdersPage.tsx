@@ -191,7 +191,7 @@ export const OrdersPage: React.FC = () => {
             My Orders
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1 font-medium">
-            Monitor real-time live package shipments, download tax invoices, and manage past purchases.
+            Monitor real-time live package shipments and manage past purchases.
           </p>
         </div>
 
@@ -766,7 +766,7 @@ export const OrdersPage: React.FC = () => {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-mono">
-                      {isOrderFailed ? 'Order Details & Breakdown' : 'Tax Invoice & Receipt'}
+                      {isOrderFailed ? 'Order Details & Breakdown' : 'Order Details & Summary'}
                     </span>
                     {isOrderFailed ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 font-mono">
@@ -851,22 +851,13 @@ export const OrdersPage: React.FC = () => {
                     </button>
                   </>
                 ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
-                      className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"
-                    >
-                      Print Invoice
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setReceiptOrder(null)}
-                      className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
-                    >
-                      Close
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => setReceiptOrder(null)}
+                    className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
+                  >
+                    Close
+                  </button>
                 )}
               </div>
             </div>

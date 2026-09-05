@@ -25,7 +25,6 @@ import { api } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import { useCart } from '../context/CartContext';
 import type { Order, RevivePayCase } from '../types';
-import { JudgeDemoSandbox } from '../components/merchant/JudgeDemoSandbox';
 
 declare global {
   interface Window {
@@ -543,29 +542,6 @@ export const OrderProcessingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Track 3 Judge Evaluation Sandbox */}
-      <div className="mb-8">
-        <JudgeDemoSandbox
-          orderId={order.orderId}
-          onScenarioExecuted={(result) => {
-            if (result?.order) {
-              setOrder(result.order);
-              if (result.order.paymentStatus === 'paid') {
-                setStage('success');
-                try {
-                  confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
-                } catch {}
-              } else if (result.order.paymentStatus === 'failed') {
-                setStage('failed');
-                setFailureReason(result.order.failureReason || 'Payment failed');
-                if (result.order.revivePayCase) {
-                  setRevivePayCase(result.order.revivePayCase);
-                }
-              }
-            }
-          }}
-        />
-      </div>
 
       {/* ======================= VIEW A: INITIATING / AWAITING ======================= */}
       {(stage === 'initiating' || stage === 'awaiting' || stage === 'processing') && (

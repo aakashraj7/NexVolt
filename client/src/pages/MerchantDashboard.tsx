@@ -30,7 +30,6 @@ import {
   Coins,
   Percent,
   Calculator,
-  Cpu,
   RefreshCw
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -507,7 +506,7 @@ export const MerchantDashboard: React.FC = () => {
             ₹{stats?.recoveredRevenue ? stats.recoveredRevenue.toLocaleString('en-IN') : '0'}
           </p>
           <p className="text-[11px] text-purple-700 font-bold font-poppins">
-            Track 3 AI Revenue Agent Active
+            Autonomous Recovery Active
           </p>
         </div>
       </div>
@@ -955,7 +954,7 @@ export const MerchantDashboard: React.FC = () => {
                 </button>
                 <div className="flex items-center gap-2 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-bold text-emerald-700 font-poppins">RevivePay Active (Gemini Guardrails)</span>
+                  <span className="text-xs font-bold text-emerald-700 font-poppins">Autonomous Recovery Active</span>
                 </div>
               </div>
             </div>
@@ -1033,7 +1032,7 @@ export const MerchantDashboard: React.FC = () => {
           {/* Interactive Judge Evaluation Sandbox & Failure Simulator */}
           <JudgeDemoSandbox onScenarioExecuted={() => loadData()} />
 
-          {/* Track 3: Unit Economics & Margin Protection Analytics */}
+          {/* Unit Economics & Margin Protection Analytics */}
           <div className="bg-gradient-to-br from-white via-slate-50 to-blue-50/40 rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-5 font-poppins">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/70 pb-4">
               <div className="space-y-1">
@@ -1112,16 +1111,6 @@ export const MerchantDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Razorpay Bounded Reasoning Justification Note */}
-            <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 flex items-start gap-3 text-xs text-slate-700 font-medium leading-relaxed">
-              <Cpu className="w-4 h-4 text-[#0066FF] shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-slate-900 font-semibold block mb-0.5">
-                  Track 3 Bounded Decision Justification (Why Retries are Worth Gateway Costs):
-                </strong>
-                Average electronics order value is ₹29,990 vs gateway authorization fee of ₹1.50. RevivePay’s AI retry evaluation proves an intervention ROI of over 10,000x for every successful bank authorization recovery.
-              </div>
-            </div>
           </div>
 
           {/* RevivePay Agent Activity Timeline */}

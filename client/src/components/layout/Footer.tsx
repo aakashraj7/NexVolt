@@ -209,7 +209,7 @@ const POLICIES: Record<string, PolicyContent> = {
     ],
     highlightBox: {
       title: 'Order Status & Tracking',
-      text: 'You can track real-time shipment status, live delivery steps, and download invoices directly from your Orders page.'
+      text: 'You can track real-time shipment status, live delivery steps, and view order details directly from your Orders page.'
     }
   }
 };
