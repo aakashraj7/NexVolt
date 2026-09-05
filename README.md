@@ -6,12 +6,14 @@
 **Razorpay Buildathon — Track 03: Autonomous Agent Money Recovery**
 
 [![Razorpay](https://img.shields.io/badge/Razorpay-Standard%20Checkout%20%26%20Payment%20Links-0066FF?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-nex--volt--web.vercel.app-0066FF?style=for-the-badge&logo=vercel&logoColor=white)](https://nex-volt-web.vercel.app/)
 [![Google Gemini](https://img.shields.io/badge/Google%20Gemini-Bounded%20Agentic%20Reasoning-4E75F8?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
 [![React](https://img.shields.io/badge/React%2019-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express%20API-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas%20Order%20State%20Machine-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 
 <p align="center">
+  🌐 <b>Live Production Application:</b> <a href="https://nex-volt-web.vercel.app/"><b>https://nex-volt-web.vercel.app/</b></a><br><br>
   <b>NexVolt</b> is a high-performance modern consumer electronics e-commerce platform.<br>
   <b>RevivePay</b> is an autonomous AI agent integrated into NexVolt that detects checkout payment failures in real-time, diagnoses failure telemetry using policy-bounded AI reasoning, and recovers lost revenue at 100% full merchant price — <b>without offering margin-destroying discounts</b>.
 </p>
@@ -171,7 +173,10 @@ The **RevivePay AI Revenue Recovery Hub** in the Merchant Portal (`/merchant/das
 
 ## 🏃 Quick Start Guide (2-Minute Judge Evaluation)
 
-### Prerequisites
+> [!TIP]
+> **🚀 Fast Track Online Evaluation**: You can immediately test the live production deployment at **[https://nex-volt-web.vercel.app/](https://nex-volt-web.vercel.app/)** without setting up anything locally!
+
+### Prerequisites (For Local Setup)
 - Node.js (v18+)
 - MongoDB (Running locally or MongoDB Atlas URI)
 - Razorpay Test Credentials (configured in `server/.env`)
@@ -249,9 +254,3 @@ VITE_RAZORPAY_KEY_ID=rzp_test_...
 | `GET` | `/api/recovery/analytics` | Aggregates Revenue at Risk, Recovered Revenue, and live timeline |
 | `GET` | `/api/merchant/stats` | Aggregated merchant KPIs, margin preservation, and sales |
 | `POST` | `/api/webhooks/razorpay` | Listens for Razorpay `order.paid` and `payment_link.paid` webhooks |
-
----
-
-## 📄 License & Acknowledgements
-Built with ❤️ for the **Razorpay Buildathon — Track 03: AI Revenue Recovery**.
-All rights reserved © 2026 NexVolt & RevivePay.
