@@ -93,10 +93,11 @@ export const OrderProcessingPage: React.FC = () => {
           if (data.paymentStatus === 'paid') {
             setStage('success');
           } else if (
-            data.paymentStatus === 'failed' ||
-            data.failureReason ||
-            (data.revivePayCase?.recoveryAttempts || 0) > 0 ||
-            data.checkoutStatus === 'abandoned'
+            location.state?.immediateStatus !== 'initiating' &&
+            (data.paymentStatus === 'failed' ||
+              data.failureReason ||
+              (data.revivePayCase?.recoveryAttempts || 0) > 0 ||
+              data.checkoutStatus === 'abandoned')
           ) {
             // Unpaid, failed, or already attempted orders stay on the resolution screen on reload
             setStage('failed');
@@ -207,9 +208,10 @@ export const OrderProcessingPage: React.FC = () => {
 
     const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder';
 
-    // 1. Ensure server-side Razorpay Order ID is available
+    // 1. Ensure server-side Razorpay Order ID is fresh & available
     let currentRzpOrderId = order.razorpayOrderId;
-    if (!currentRzpOrderId) {
+    const isRetrying = order.paymentStatus === 'failed' || (order.revivePayCase?.recoveryAttempts || 0) > 0;
+    if (!currentRzpOrderId || isRetrying) {
       try {
         const rzpOrderData = await api.createRazorpayOrder(order.orderId);
         if (rzpOrderData?.razorpayOrderId) {
@@ -217,7 +219,7 @@ export const OrderProcessingPage: React.FC = () => {
           setOrder(prev => (prev ? { ...prev, razorpayOrderId: rzpOrderData.razorpayOrderId } : null));
         }
       } catch (err) {
-        console.warn('Could not pre-create Razorpay Order ID on server, falling back to direct amount mode:', err);
+        console.warn('Could not refresh Razorpay Order ID on server, falling back to existing:', err);
       }
     }
 
@@ -345,10 +347,25 @@ export const OrderProcessingPage: React.FC = () => {
 
     fetchRevivePayAnalysis();
 
-    // If a payment link is active, poll order status every 3.5s for instant webhook/external payment confirmation
+    // If a payment link is active, poll order status and sync Razorpay link status every 3.5s for instant confirmation
     let pollTimer: any = null;
     pollTimer = setInterval(async () => {
       try {
+        // Direct Razorpay API sync check (guarantees real-time confirmation on localhost and production)
+        const syncRes = await api.syncPaymentLinkStatus(order.orderId);
+        if (syncRes?.paid && syncRes.order) {
+          if (isMounted) {
+            setOrder(syncRes.order);
+            setStage('success');
+            clearCart();
+            showToast('Payment confirmed! Your order is placed.', 'success');
+            try {
+              confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
+            } catch {}
+          }
+          return;
+        }
+
         const latest = await api.getOrderById(order.orderId);
         if (latest && latest.paymentStatus === 'paid') {
           if (isMounted) {

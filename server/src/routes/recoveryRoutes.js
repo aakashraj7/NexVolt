@@ -1,6 +1,10 @@
 import express from 'express';
 import Order from '../models/Order.js';
-import { analyzeRecoveryCase, executeGeneratePaymentLink } from '../services/recoveryAgentService.js';
+import {
+  analyzeRecoveryCase,
+  executeGeneratePaymentLink,
+  syncPaymentLinkStatus
+} from '../services/recoveryAgentService.js';
 
 const router = express.Router();
 
@@ -8,7 +12,8 @@ const router = express.Router();
 router.post('/analyze/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
-    const result = await analyzeRecoveryCase(orderId);
+    const { forceReanalysis = false } = req.body || {};
+    const result = await analyzeRecoveryCase(orderId, { forceReanalysis });
     if (result.notFound) {
       return res.status(404).json(result);
     }
@@ -30,6 +35,21 @@ router.post('/generate-link/:orderId', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error generating RevivePay payment link:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/recovery/sync-link/:orderId - Verify & Sync Razorpay Payment Link Status (Localhost & Webhook Fallback)
+router.get('/sync-link/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const result = await syncPaymentLinkStatus(orderId);
+    if (result.notFound) {
+      return res.status(404).json(result);
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('Error syncing payment link status:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

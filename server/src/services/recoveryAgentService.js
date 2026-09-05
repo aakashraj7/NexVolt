@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import Order from '../models/Order.js';
-import { createRazorpayPaymentLink } from './razorpayService.js';
+import Cart from '../models/Cart.js';
+import { createRazorpayPaymentLink, razorpayInstance } from './razorpayService.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -167,7 +168,7 @@ function evaluateRuleBasedFallback(order, attemptNumber) {
  * @param {string} orderId - NexVolt Order ID
  * @returns {Promise<Object>}
  */
-export async function analyzeRecoveryCase(orderId) {
+export async function analyzeRecoveryCase(orderId, { forceReanalysis = false } = {}) {
   const order = await Order.findOne({ orderId });
   if (!order) {
     return {
@@ -187,8 +188,26 @@ export async function analyzeRecoveryCase(orderId) {
     };
   }
 
-  // Guardrail 2: Increment Attempt Counter
-  const currentAttempts = (order.revivePayCase?.recoveryAttempts || 0) + 1;
+  // Idempotency: If this order was already analyzed for its current failure and we are not forcing reanalysis, return cached case
+  const hasExistingAction = Boolean(order.revivePayCase?.lastRecommendedAction && order.revivePayCase?.decisionLogs?.length > 0);
+  if (!forceReanalysis && hasExistingAction) {
+    return {
+      success: true,
+      orderId: order.orderId,
+      recoveryCase: order.revivePayCase,
+      decision: {
+        decision: order.revivePayCase.lastRecommendedAction,
+        tool: order.revivePayCase.decisionLogs[order.revivePayCase.decisionLogs.length - 1]?.tool,
+        reason: order.revivePayCase.agentReasoning,
+        customerMessage: order.revivePayCase.customerMessage,
+        promptUserForLink: order.revivePayCase.promptUserForLink
+      },
+      cached: true
+    };
+  }
+
+  // Guardrail 2: Increment Attempt Counter (capped at 3)
+  const currentAttempts = Math.min(3, (order.revivePayCase?.recoveryAttempts || 0) + 1);
 
   // Build Safe Context Payload for Gemini
   const safeContext = {
@@ -409,3 +428,85 @@ export async function executeGeneratePaymentLink(orderId) {
     currency: paymentLink.currency
   };
 }
+
+/**
+ * Synchronizes external Razorpay Payment Link status directly with Razorpay API
+ * Allows reliable payment confirmation on localhost without requiring webhook tunnels
+ * @param {string} orderId
+ * @returns {Promise<Object>}
+ */
+export async function syncPaymentLinkStatus(orderId) {
+  const order = await Order.findOne({ orderId });
+  if (!order) {
+    return { success: false, notFound: true, message: `Order #${orderId} not found.` };
+  }
+
+  // Idempotency: If already marked paid, return success immediately
+  if (order.paymentStatus === 'paid') {
+    return { success: true, paid: true, order };
+  }
+
+  const linkId = order.revivePayCase?.razorpayPaymentLinkId;
+  if (!linkId) {
+    return { success: true, paid: false, message: 'No payment link associated with this order.', order };
+  }
+
+  if (!razorpayInstance) {
+    return { success: false, message: 'Razorpay SDK instance not configured.' };
+  }
+
+  try {
+    const paymentLink = await razorpayInstance.paymentLink.fetch(linkId);
+    if (paymentLink && paymentLink.status === 'paid') {
+      order.paymentStatus = 'paid';
+      order.checkoutStatus = 'recovered';
+      order.failureReason = '';
+      order.abandonedAt = null;
+      if (order.recoveryMetadata) {
+        order.recoveryMetadata.isRecovered = true;
+      }
+      order.merchantNotified = true;
+
+      const latestPaymentId = paymentLink.payments?.[0]?.payment_id || `pay_${linkId}`;
+      order.paymentId = latestPaymentId;
+      order.razorpayPaymentId = latestPaymentId;
+
+      if (order.revivePayCase) {
+        order.revivePayCase.status = 'recovered';
+        order.revivePayCase.recoveredAt = new Date();
+        order.revivePayCase.recoveredAmount = order.totalAmount;
+        order.revivePayCase.razorpayPaymentLinkStatus = 'paid';
+        order.revivePayCase.decisionLogs.push({
+          timestamp: new Date(),
+          decision: 'payment_link_completed',
+          reason: 'Customer successfully paid via Razorpay Recovery Payment Link (confirmed via Razorpay API sync)',
+          tool: 'createPaymentLink',
+          result: 'recovered',
+          attemptNumber: order.revivePayCase.recoveryAttempts || 1
+        });
+      }
+
+      await order.save();
+
+      // Clear user cart
+      await Cart.findOneAndUpdate(
+        { userId: order.userId },
+        { items: [], couponApplied: { code: '', discountPercent: 0 } }
+      );
+
+      console.log(`RevivePay API Sync: Verified and marked Order #${order.orderId} as RECOVERED.`);
+      return { success: true, paid: true, verified: true, order };
+    }
+
+    return {
+      success: true,
+      paid: false,
+      linkStatus: paymentLink.status,
+      order
+    };
+  } catch (err) {
+    console.error('Error syncing Razorpay payment link:', err);
+    return { success: false, message: err.message };
+  }
+}
+

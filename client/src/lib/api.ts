@@ -408,6 +408,18 @@ export const api = {
     return null;
   },
 
+  async syncPaymentLinkStatus(orderId: string) {
+    try {
+      const res = await apiClient.get(`/recovery/sync-link/${orderId}`);
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend syncPaymentLinkStatus error:', err);
+    }
+    return null;
+  },
+
   async getRecoveryAnalytics() {
     try {
       const res = await apiClient.get('/recovery/analytics');

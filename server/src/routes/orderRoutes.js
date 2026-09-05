@@ -221,8 +221,8 @@ router.post('/:orderId/fail', async (req, res) => {
 
     await order.save();
 
-    // Trigger RevivePay AI Recovery Analysis asynchronously
-    analyzeRecoveryCase(order.orderId).catch(err => {
+    // Trigger RevivePay AI Recovery Analysis asynchronously with forceReanalysis for this new failure event
+    analyzeRecoveryCase(order.orderId, { forceReanalysis: true }).catch(err => {
       console.warn('RevivePay background analysis note:', err.message);
     });
 
