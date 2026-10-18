@@ -451,6 +451,18 @@ export async function syncPaymentLinkStatus(orderId) {
     return { success: true, paid: false, message: 'No payment link associated with this order.', order };
   }
 
+  // Demo / Simulated Payment Links bypass external Razorpay API check
+  if (linkId.startsWith('plink_demo_') || linkId.startsWith('plink_mock_')) {
+    return {
+      success: true,
+      paid: false,
+      isDemoMode: true,
+      linkStatus: 'demo_simulated',
+      message: 'Payment links are simulated in demo mode.',
+      order
+    };
+  }
+
   if (!razorpayInstance) {
     return { success: false, message: 'Razorpay SDK instance not configured.' };
   }

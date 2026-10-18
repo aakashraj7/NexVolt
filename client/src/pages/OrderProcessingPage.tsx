@@ -61,6 +61,7 @@ export const OrderProcessingPage: React.FC = () => {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isCheckingLink, setIsCheckingLink] = useState(false);
+  const [showDemoLinkNoticeModal, setShowDemoLinkNoticeModal] = useState(false);
 
   // 1. Scroll To Top on mount and whenever stage updates
   useEffect(() => {
@@ -409,7 +410,7 @@ export const OrderProcessingPage: React.FC = () => {
                 razorpayPaymentLinkUrl: res.shortUrl
               }
         );
-        showToast('Secure Razorpay Payment Link generated!', 'success');
+        showToast('Demo payment link generated (simulated for testing).', 'success');
       } else {
         showToast('Could not generate payment link. Please retry or choose Cash on Delivery.', 'error');
       }
@@ -816,15 +817,14 @@ export const OrderProcessingPage: React.FC = () => {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-                    <a
-                      href={revivePayCase.razorpayPaymentLinkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full sm:w-auto flex-1 py-2.5 px-4 rounded-xl bg-[#0066FF] hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 shadow-xs transition"
+                    <button
+                      type="button"
+                      onClick={() => showToast('Payment links are simulated in demo mode. Please use "Retry Payment with Razorpay" below for live test checkout.', 'info')}
+                      className="w-full sm:w-auto flex-1 py-2.5 px-4 rounded-xl bg-[#0066FF] hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
                     >
                       <span>Open Secure Razorpay Link</span>
                       <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
                     <button
                       type="button"
                       onClick={handleManualSyncPaymentLink}
@@ -840,7 +840,7 @@ export const OrderProcessingPage: React.FC = () => {
                     </button>
                   </div>
                   <p className="text-[10px] text-slate-500 font-medium">
-                    ⚡ You can pay via UPI, Cards, or NetBanking on any device. Once paid, this page will automatically confirm your order.
+                    ⚡ In demo mode, simulated payment links do not dispatch live SMS or emails. Use <strong>Retry Payment with Razorpay</strong> below for instant test completion.
                   </p>
                 </div>
               ) : (revivePayCase?.promptUserForLink || revivePayCase?.lastRecommendedAction === 'suggest_payment_link') ? (
@@ -852,7 +852,7 @@ export const OrderProcessingPage: React.FC = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={handleGeneratePaymentLink}
+                      onClick={() => setShowDemoLinkNoticeModal(true)}
                       disabled={isGeneratingLink}
                       className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
                     >
@@ -1026,6 +1026,42 @@ export const OrderProcessingPage: React.FC = () => {
                 className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0066FF] to-[#0052CC] hover:from-blue-600 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition cursor-pointer"
               >
                 Proceed to Pay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Demo Mode Payment Link Notice Modal */}
+      {showDemoLinkNoticeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 font-poppins">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200 shadow-sm">
+              <QrCode className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200">
+                Demo Notice
+              </span>
+              <h3 className="text-lg font-bold text-slate-900 font-heading">
+                Payment links are not sent in demo mode
+              </h3>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                Because this store is running in demonstration mode, real SMS and email payment links are not dispatched to avoid sending live communications.
+              </p>
+              <p className="text-xs text-slate-500 font-normal leading-relaxed">
+                You can still generate a simulated link to preview how RevivePay creates recovery URLs for buyers, or use <strong>Retry Payment with Razorpay</strong> for the live checkout popup.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowDemoLinkNoticeModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

@@ -1134,7 +1134,7 @@ export const MerchantDashboard: React.FC = () => {
                   const isEscalate = event.decision === 'escalate';
 
                   const eventTime = event.timestamp
-                    ? new Date(event.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                    ? `${new Date(event.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, ${new Date(event.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`
                     : '';
 
                   if (isRecoverySuccess) {

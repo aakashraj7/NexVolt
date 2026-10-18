@@ -309,12 +309,24 @@ export const OrdersPage: React.FC = () => {
             return (
               <>
                 {paginatedOrders.map((order) => {
+                  const isCOD = Boolean(
+                    order.paymentMethod?.toLowerCase().includes('delivery') ||
+                    order.paymentMethod?.toLowerCase().includes('cod')
+                  );
+                  const isPaid = order.paymentStatus === 'paid' || order.paymentStatus === 'delivered' || order.paymentStatus === 'shipped';
+                  const isFailed = !isPaid && !isCOD && (
+                    order.paymentStatus === 'failed' ||
+                    order.paymentStatus === 'pending' ||
+                    order.paymentStatus === 'cancelled' ||
+                    order.checkoutStatus === 'abandoned' ||
+                    Boolean(order.failureReason)
+                  );
+
                   const statusNormalized = (order.orderStatus || order.paymentStatus || 'Confirmed').toLowerCase();
-                  const isDelivered = statusNormalized === 'delivered';
-                  const isShipped = statusNormalized === 'in-transit' || statusNormalized === 'shipped';
-                  const isPacked = statusNormalized === 'packed';
-                  const isConfirmed = statusNormalized === 'confirmed' || statusNormalized === 'paid';
-                  const isFailed = statusNormalized === 'failed' || (order.paymentStatus === 'pending' && !order.paymentMethod?.toLowerCase().includes('delivery') && !order.paymentMethod?.toLowerCase().includes('cod'));
+                  const isDelivered = !isFailed && statusNormalized === 'delivered';
+                  const isShipped = !isFailed && (statusNormalized === 'in-transit' || statusNormalized === 'shipped');
+                  const isPacked = !isFailed && statusNormalized === 'packed';
+                  const isConfirmed = !isFailed && (statusNormalized === 'confirmed' || statusNormalized === 'paid' || isPaid || isCOD);
 
                   return (
                     <div
@@ -330,7 +342,9 @@ export const OrdersPage: React.FC = () => {
                             </span>
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                                isDelivered
+                                isFailed
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  : isDelivered
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   : isShipped
                                   ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
@@ -341,7 +355,9 @@ export const OrdersPage: React.FC = () => {
                                   : 'bg-rose-50 text-rose-700 border border-rose-200'
                               }`}
                             >
-                              {isDelivered
+                              {isFailed
+                                ? 'Payment Failed'
+                                : isDelivered
                                 ? 'Delivered'
                                 : isShipped
                                 ? 'In-Transit'

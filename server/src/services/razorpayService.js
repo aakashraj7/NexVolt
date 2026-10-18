@@ -112,7 +112,8 @@ export function verifyWebhookSignature(rawBody, signature, secret) {
 }
 
 /**
- * Creates a Razorpay Payment Link for failed order recovery (RevivePay)
+ * Creates a Mock/Simulated Razorpay Payment Link for demo mode
+ * Keeps standard Razorpay 1-Click checkout live, but avoids sending real SMS/email links.
  * @param {Object} params
  * @param {number} params.amountInRupees
  * @param {string} params.orderId
@@ -120,40 +121,32 @@ export function verifyWebhookSignature(rawBody, signature, secret) {
  * @param {string} [params.description]
  */
 export async function createRazorpayPaymentLink({ amountInRupees, orderId, customerDetails, description }) {
-  if (!razorpayInstance) {
-    throw new Error('Razorpay SDK is not configured on the server.');
-  }
-
   const amountInPaise = Math.round(Number(amountInRupees) * 100);
   if (isNaN(amountInPaise) || amountInPaise <= 0) {
     throw new Error(`Invalid order amount: ${amountInRupees}`);
   }
 
-  const options = {
+  // Generate a mock payment link for demo mode
+  const cleanId = String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(-10);
+  const mockLinkId = `plink_demo_${cleanId}_${Date.now().toString(36)}`;
+  const mockShortUrl = `https://rzp.io/i/demo-${cleanId}`;
+
+  return {
+    id: mockLinkId,
+    short_url: mockShortUrl,
+    status: 'created',
     amount: amountInPaise,
     currency: 'INR',
-    accept_partial: false,
-    reference_id: String(orderId).slice(0, 40),
-    description: description || `RevivePay Recovery for Order #${orderId}`,
+    description: description || `RevivePay Demo Recovery for Order #${orderId}`,
     customer: {
-      name: customerDetails?.name || 'Customer',
-      email: customerDetails?.email || '',
-      contact: customerDetails?.phone || ''
+      name: customerDetails?.name || 'Demo Customer',
+      email: customerDetails?.email || 'demo@nexvolt.in',
+      contact: customerDetails?.phone || '+919999999999'
     },
-    notify: {
-      sms: Boolean(customerDetails?.phone),
-      email: Boolean(customerDetails?.email)
-    },
-    reminder_enable: true,
-    notes: {
-      orderId,
-      receipt: orderId,
-      source: 'RevivePay_AI_Recovery_Agent'
-    }
+    isMock: true,
+    notify: { sms: false, email: false }
   };
-
-  const paymentLink = await razorpayInstance.paymentLink.create(options);
-  return paymentLink;
 }
 
 export { razorpayInstance };
+
