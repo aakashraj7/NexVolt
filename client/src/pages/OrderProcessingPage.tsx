@@ -58,7 +58,6 @@ export const OrderProcessingPage: React.FC = () => {
   // RevivePay AI Recovery State
   const [revivePayCase, setRevivePayCase] = useState<RevivePayCase | null>(null);
   const [isAnalyzingRevivePay, setIsAnalyzingRevivePay] = useState(false);
-  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isCheckingLink, setIsCheckingLink] = useState(false);
   const [showDemoLinkNoticeModal, setShowDemoLinkNoticeModal] = useState(false);
@@ -388,38 +387,6 @@ export const OrderProcessingPage: React.FC = () => {
       if (pollTimer) clearInterval(pollTimer);
     };
   }, [stage, order?.orderId]);
-
-  const handleGeneratePaymentLink = async () => {
-    if (!order) return;
-    try {
-      setIsGeneratingLink(true);
-      const res = await api.generateRecoveryPaymentLink(order.orderId);
-      if (res?.success && res.shortUrl) {
-        setRevivePayCase(prev =>
-          prev
-            ? {
-                ...prev,
-                status: 'link_generated',
-                razorpayPaymentLinkId: res.paymentLinkId,
-                razorpayPaymentLinkUrl: res.shortUrl
-              }
-            : {
-                status: 'link_generated',
-                recoveryAttempts: 1,
-                razorpayPaymentLinkId: res.paymentLinkId,
-                razorpayPaymentLinkUrl: res.shortUrl
-              }
-        );
-        showToast('Demo payment link generated (simulated for testing).', 'success');
-      } else {
-        showToast('Could not generate payment link. Please retry or choose Cash on Delivery.', 'error');
-      }
-    } catch (err: any) {
-      showToast(err?.response?.data?.message || 'Error creating payment link', 'error');
-    } finally {
-      setIsGeneratingLink(false);
-    }
-  };
 
   const handleCopyLink = () => {
     if (revivePayCase?.razorpayPaymentLinkUrl) {
@@ -853,11 +820,10 @@ export const OrderProcessingPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowDemoLinkNoticeModal(true)}
-                      disabled={isGeneratingLink}
-                      className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                      className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0066FF] border border-blue-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
-                      {isGeneratingLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
-                      <span>{isGeneratingLink ? 'Generating...' : 'Create Payment Link'}</span>
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Create Payment Link</span>
                     </button>
                   </div>
                 </div>
@@ -1051,17 +1017,17 @@ export const OrderProcessingPage: React.FC = () => {
                 Because this store is running in demonstration mode, real SMS and email payment links are not dispatched to avoid sending live communications.
               </p>
               <p className="text-xs text-slate-500 font-normal leading-relaxed">
-                You can still generate a simulated link to preview how RevivePay creates recovery URLs for buyers, or use <strong>Retry Payment with Razorpay</strong> for the live checkout popup.
+                Please use the <strong>Retry Payment with Razorpay</strong> button below to complete your test checkout seamlessly via the secure 1-Click checkout modal.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center justify-end pt-1">
               <button
                 type="button"
                 onClick={() => setShowDemoLinkNoticeModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                className="w-full px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer shadow-xs"
               >
-                Close
+                Got it, Close
               </button>
             </div>
           </div>
