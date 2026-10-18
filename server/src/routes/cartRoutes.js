@@ -139,7 +139,7 @@ router.post('/:userId/coupon', async (req, res) => {
 
     const validCoupons = {
       'NEXVOLT10': 10,
-      'RAZORPAY20': 20,
+      'VOLT20': 20,
       'SUPERTECH15': 15,
       'RECOVER500': 10
     };

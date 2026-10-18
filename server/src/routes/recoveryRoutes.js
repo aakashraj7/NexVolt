@@ -10,7 +10,7 @@ import {
 
 const router = express.Router();
 
-// POST /api/recovery/simulate-scenario - Interactive Judge Sandbox simulator
+// POST /api/recovery/simulate-scenario - Merchant recovery scenario simulator & telemetry test
 router.post('/simulate-scenario', async (req, res) => {
   try {
     const { scenario = 'bank_timeout', orderId } = req.body || {};
@@ -26,9 +26,9 @@ router.post('/simulate-scenario', async (req, res) => {
       if (!order) {
         order = new Order({
           orderId: 'NV-SIM-' + Math.floor(100000 + Math.random() * 900000),
-          userId: 'judge_sandbox_user',
+          userId: 'simulator_test_user',
           customerDetails: {
-            name: 'Priya Sharma (Judge Sandbox)',
+            name: 'Priya Sharma (Simulated)',
             email: 'priya.sharma@example.com',
             phone: '9876543210',
             address: {
@@ -150,12 +150,12 @@ router.post('/simulate-scenario', async (req, res) => {
 
     const analysis = await analyzeRecoveryCase(order.orderId, { forceReanalysis: true });
 
-    // For popup_blocked scenario, proactively generate the payment link so judge sees link ready
+    // For popup_blocked scenario, proactively generate the payment link so link is ready
     if (scenario === 'popup_blocked') {
       try {
         await executeGeneratePaymentLink(order.orderId);
       } catch (linkErr) {
-        console.warn('Sandbox link pre-creation notice:', linkErr.message);
+        console.warn('Simulator link pre-creation notice:', linkErr.message);
       }
     }
 
@@ -169,7 +169,7 @@ router.post('/simulate-scenario', async (req, res) => {
       decision: analysis.decision
     });
   } catch (error) {
-    console.error('Error in sandbox simulation:', error);
+    console.error('Error in recovery simulation:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

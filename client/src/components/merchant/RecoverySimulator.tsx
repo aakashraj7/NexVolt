@@ -14,13 +14,13 @@ import {
 import { api } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 
-interface JudgeDemoSandboxProps {
+interface RecoverySimulatorProps {
   orderId?: string;
   onScenarioExecuted?: (result: any) => void;
   className?: string;
 }
 
-export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
+export const RecoverySimulator: React.FC<RecoverySimulatorProps> = ({
   orderId,
   onScenarioExecuted,
   className = ''
@@ -85,7 +85,7 @@ export const JudgeDemoSandbox: React.FC<JudgeDemoSandboxProps> = ({
         showToast('Simulator returned an error. Please try again.', 'error');
       }
     } catch (err: any) {
-      console.error('Judge Sandbox execution error:', err);
+      console.error('Recovery simulator execution error:', err);
       showToast(err?.response?.data?.message || 'Failed to execute simulation scenario', 'error');
     } finally {
       setIsRunning(false);

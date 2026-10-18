@@ -140,7 +140,7 @@ router.post('/:orderId/create-razorpay-order', async (req, res) => {
   }
 });
 
-// POST /api/orders/:orderId/abandon - Mark checkout as abandoned (Track 3)
+// POST /api/orders/:orderId/abandon - Mark checkout as abandoned (RevivePay)
 router.post('/:orderId/abandon', async (req, res) => {
   try {
     const { orderId } = req.params;

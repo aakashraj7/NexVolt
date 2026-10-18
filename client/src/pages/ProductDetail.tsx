@@ -270,10 +270,10 @@ export const ProductDetailPage: React.FC = () => {
     try {
       setIsInitiatingOneClick(true);
       const activeAddress = userAddresses.find(a => a._id === selectedAddressId) || userAddresses[0] || {
-        street: '42, Anna Salai, T. Nagar',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        postalCode: '600017',
+        street: '402, Horizon Heights, Indiranagar',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        postalCode: '560038',
         country: 'India',
         recipientName: user.fullName || 'Customer',
         phone: user.primaryPhoneNumber?.phoneNumber || '9000000000'

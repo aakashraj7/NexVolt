@@ -202,7 +202,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const clean = code.trim().toUpperCase();
     const VALID_COUPONS: Record<string, number> = {
       'NEXVOLT10': 10,
-      'RAZORPAY20': 20,
+      'VOLT20': 20,
       'SUPERTECH15': 15,
       'RECOVER500': 10
     };
@@ -215,7 +215,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       showToast(`Coupon ${clean} applied! You saved ${VALID_COUPONS[clean]}%`, 'success');
       return true;
     } else {
-      showToast('Invalid promo code. Try NEXVOLT10 or RAZORPAY20', 'error');
+      showToast('Invalid promo code. Try NEXVOLT10 or VOLT20', 'error');
       return false;
     }
   };

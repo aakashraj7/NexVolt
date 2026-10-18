@@ -1,9 +1,9 @@
 <div align="center">
 
-# ⚡ NexVolt & RevivePay
+#  NexVolt & RevivePay
 
 ### *Autonomous AI Revenue Recovery Engine & Premium Electronics Commerce*
-**Razorpay Buildathon — Track 03: Autonomous Agent Money Recovery**
+**Production-Grade E-Commerce Platform with Real-Time Payment Failure Recovery**
 
 [![Razorpay](https://img.shields.io/badge/Razorpay-Standard%20Checkout%20%26%20Payment%20Links-0066FF?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com/)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-nex--volt--web.vercel.app-0066FF?style=for-the-badge&logo=vercel&logoColor=white)](https://nex-volt-web.vercel.app/)
@@ -28,11 +28,11 @@
 - [Key Innovations & Technical Highlights](#-key-innovations--technical-highlights)
 - [System Architecture](#-system-architecture)
 - [How RevivePay Operates (Step-by-Step)](#-how-revivepay-operates-step-by-step)
-- [Interactive Simulator for Judges](#-interactive-simulator-for-judges)
+- [Merchant Recovery Simulator & Diagnostics](#-merchant-recovery-simulator--diagnostics)
 - [Merchant Hub & Unit Economics Telemetry](#-merchant-hub--unit-economics-telemetry)
 - [Strict Safety Guardrails & Policy Boundary](#-strict-safety-guardrails--policy-boundary)
 - [Razorpay Security & Cryptographic Verification](#-razorpay-security--cryptographic-verification)
-- [Quick Start Guide (2-Minute Judge Evaluation)](#-quick-start-guide-2-minute-judge-evaluation)
+- [Quick Start Guide](#-quick-start-guide)
 - [Environment Configuration](#-environment-configuration)
 - [API Reference](#-api-reference)
 
@@ -122,17 +122,17 @@ flowchart TD
 
 ---
 
-## 🕹 Interactive Simulator for Judges
+## 🕹 Merchant Recovery Simulator & Diagnostics
 
-To facilitate frictionless evaluation, we built a dedicated **Recovery Scenario & Telemetry Simulator** directly into the **Merchant Dashboard** ([Tab 3: RevivePay Hub](http://localhost:5173/merchant/dashboard?tab=recovery)).
+To facilitate operational testing and validation, NexVolt features a dedicated **Recovery Scenario & Telemetry Simulator** built directly into the **Merchant Dashboard** ([RevivePay Hub](http://localhost:5173/merchant/dashboard?tab=recovery)).
 
-Judges can inject 4 realistic payment failure scenarios with 1 click:
+Store administrators and developers can simulate 4 realistic payment failure scenarios with 1 click:
 1. **Bank Gateway Timeout (Smart Retry Route)**: Simulates a core banking timeout (`BAD_REQUEST_GATEWAY_TIMEOUT`). Tests autonomous 1-click retry routing.
 2. **OTP Expired / Drop-off (Payment Link Route)**: Simulates customer mobile session drop-off. Tests Razorpay Payment Link generation and cross-device recovery.
 3. **Insufficient Funds / Limit Rejection**: Simulates card authorization decline. Tests non-intrusive payment method re-routing.
 4. **Cross-Device Cart Abandonment**: Tests asynchronous drop-off detection and merchant margin tracking.
 
-Judges can click **"Inspect Decision Trace"** on any simulated result to view the raw policy execution trace, guardrail verification, and financial rationale.
+Store operators can click **"Inspect Decision Trace"** on any simulated result to view the raw policy execution trace, guardrail verification, and financial rationale.
 
 ---
 
@@ -171,10 +171,10 @@ The **RevivePay AI Revenue Recovery Hub** in the Merchant Portal (`/merchant/das
 
 ---
 
-## 🏃 Quick Start Guide (2-Minute Judge Evaluation)
+## 🏃 Quick Start Guide
 
 > [!TIP]
-> **🚀 Fast Track Online Evaluation**: You can immediately test the live production deployment at **[https://nex-volt-web.vercel.app/](https://nex-volt-web.vercel.app/)** without setting up anything locally!
+> **🚀 Live Store & Production Deployment**: You can immediately experience the live application at **[https://nex-volt-web.vercel.app/](https://nex-volt-web.vercel.app/)**!
 
 ### Prerequisites (For Local Setup)
 - Node.js (v18+)
@@ -194,18 +194,19 @@ yarn install
 yarn dev
 ```
 
-### 2. Experience the 2-Minute Demo Flow
-1. **Shopper Flow**:
-   - Open `http://localhost:5173/` and add the **Sony WH-1000XM5 Headphones** (₹29,990) to cart.
+### 2. Experience the Customer Checkout & Recovery Flow
+1. **Customer Checkout Flow**:
+   - Open `http://localhost:5173/` and add products (e.g. **Sony WH-1000XM5 Headphones**, ₹29,990) to cart.
    - Click **Proceed to Checkout** → **Pay with Razorpay**.
-   - In the Razorpay modal, select **Failure** (or close the window) to simulate a bank gateway drop.
-   - Observe how RevivePay diagnoses the failure and provides a **1-click Retry** or **Razorpay Direct Payment Link**.
-   - Click **Open Secure Razorpay Link** (or click **Check Payment Status** after completing).
-2. **Merchant Hub Flow**:
+   - If payment is interrupted or the window is closed, NexVolt captures diagnostic telemetry.
+   - RevivePay diagnoses the failure and provides an immediate **1-click Retry** or **Secure Razorpay Payment Link (`rzp.io`)** with UPI QR code.
+   - Complete the payment via the link or retry; the order automatically updates to confirmed in real-time.
+2. **Merchant Dashboard & Recovery Hub**:
    - Navigate to `http://localhost:5173/merchant/dashboard?tab=recovery`.
-   - Click **Sync Razorpay Gateway** to reconcile live links.
-   - Review the **Unit Economics & Margin Protection** metrics (12% margin preserved, 18.4x ROI).
-   - Use the **Scenario Simulator** dropdown to test *OTP Expired* or *Bank Gateway Timeout* on demand!
+   - Monitor live orders, revenue at risk, and recovered order metrics.
+   - Click **Sync Razorpay Gateway** to synchronize pending payment link statuses with Razorpay's live API.
+   - Review margin protection insights (12% margin preserved, zero coupon discounts given).
+   - Use the **Recovery Scenario Simulator** to test automated recovery handling on demand.
 
 ---
 

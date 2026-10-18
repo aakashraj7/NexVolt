@@ -370,7 +370,7 @@ export const Home: React.FC = () => {
               Unlock Flat 10% Off Instant Discount
             </h2>
             <p className="text-slate-600 text-sm">
-              Use promo code <span className="font-mono text-cyan-700 font-bold bg-white px-2 py-0.5 rounded border border-cyan-200 shadow-sm">NEXVOLT10</span> or <span className="font-mono text-amber-700 font-bold bg-white px-2 py-0.5 rounded border border-amber-200 shadow-sm">RAZORPAY20</span> at checkout.
+              Use promo code <span className="font-mono text-cyan-700 font-bold bg-white px-2 py-0.5 rounded border border-cyan-200 shadow-sm">NEXVOLT10</span> or <span className="font-mono text-amber-700 font-bold bg-white px-2 py-0.5 rounded border border-amber-200 shadow-sm">VOLT20</span> at checkout.
             </p>
 
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">

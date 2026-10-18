@@ -36,7 +36,7 @@ import { api } from '../lib/api';
 import type { Product, Order } from '../types';
 import { useToast } from '../context/ToastContext';
 import { ProductStudioModal } from '../components/merchant/ProductStudioModal';
-import { JudgeDemoSandbox } from '../components/merchant/JudgeDemoSandbox';
+import { RecoverySimulator } from '../components/merchant/RecoverySimulator';
 
 export const FULFILLMENT_STATUSES = [
   {
@@ -1029,8 +1029,8 @@ export const MerchantDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Judge Evaluation Sandbox & Failure Simulator */}
-          <JudgeDemoSandbox onScenarioExecuted={() => loadData()} />
+          {/* Revenue Recovery Simulator & Scenario Diagnostic Tool */}
+          <RecoverySimulator onScenarioExecuted={() => loadData()} />
 
           {/* Unit Economics & Margin Protection Analytics */}
           <div className="bg-gradient-to-br from-white via-slate-50 to-blue-50/40 rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-5 font-poppins">

@@ -198,13 +198,13 @@ const POLICIES: Record<string, PolicyContent> = {
         text: 'Reach out to our customer care team anytime for queries regarding orders, shipments, product guidance, or merchant inquiries:',
         points: [
           'Email Support: support@nexvolt.in (Replies within 2 hours)',
-          'Test Helpline: +91 90000 00000 • 9:00 AM – 9:00 PM IST (Mon–Sun)',
+          'Customer Desk: +91 1800-200-8658 • 9:00 AM – 9:00 PM IST (Mon–Sun)',
           'Merchant Partner Desk: seller-support@nexvolt.in'
         ]
       },
       {
         heading: 'Corporate Headquarters',
-        text: 'NexVolt Electronics India Pvt. Ltd.\nBlock C-4, Apex Tech Towers, Anna Salai, T. Nagar,\nChennai, Tamil Nadu – 600017, India.'
+        text: 'NexVolt Electronics Technologies Pvt. Ltd.\nTower 4, Horizon Technology Park, Outer Ring Road,\nBengaluru, Karnataka – 560103, India.'
       }
     ],
     highlightBox: {

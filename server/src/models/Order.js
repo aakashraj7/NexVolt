@@ -69,7 +69,7 @@ const orderSchema = new mongoose.Schema({
     default: 'Confirmed'
   },
   merchantNotified: { type: Boolean, default: true },
-  // Revenue Recovery Tracking fields (Track 3: RevivePay)
+  // Revenue Recovery Tracking fields (RevivePay AI)
   checkoutStatus: {
     type: String,
     enum: ['initiated', 'abandoned', 'recovered', 'completed'],

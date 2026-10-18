@@ -722,7 +722,7 @@ export const CheckoutPage: React.FC = () => {
                   required
                   value={newAddrStreet}
                   onChange={(e) => setNewAddrStreet(e.target.value)}
-                  placeholder="42, Anna Salai, T. Nagar"
+                  placeholder="42, Horizon Avenue, Indiranagar"
                   className="w-full bg-slate-50 border border-slate-300 focus:border-[#0066FF] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none transition"
                 />
               </div>
